@@ -16,7 +16,7 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 ////                                                              ////
-//// Copyright (C) 2000 YOUR NAME HERE and OPENCORES.ORG          ////
+//// Copyright (C) 2001 YOUR NAME HERE and OPENCORES.ORG          ////
 ////                                                              ////
 //// This source file may be used and distributed without         ////
 //// restriction provided that this copyright statement is not    ////

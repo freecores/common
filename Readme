@@ -33,4 +33,12 @@
 //      it manually does the translation for widths up to 16 bits.
 //    If the user wants fewer bits, the synthesis tool removes the extra.
 //
+//  "plesiochronous_fifo.v" is an example of a FIFO which transfers packets
+//      between two clock domains.
+//    The clocks are REQUIRED to be close to one-another in frequency.
+//    The Writer is REQUIRED to skip writes every so often, to make sure that
+//      the FIFO doesn't overflow.
+//    This file instantiates the synchronizer_flop mentioned above.
+//
+
 
