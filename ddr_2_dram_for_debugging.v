@@ -88,11 +88,14 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: ddr_2_dram_for_debugging.v,v 1.6 2001-11-01 13:24:51 bbeaver Exp $
+// $Id: ddr_2_dram_for_debugging.v,v 1.7 2001-11-02 11:52:28 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.9  2001/11/02 11:59:30  Blue Beaver
+// no message
+//
 // Revision 1.8  2001/11/01 13:33:03  Blue Beaver
 // no message
 //
@@ -488,8 +491,43 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
   input   CLK_P, CLK_N;
   input  [1:0] bank_num;
 
+// DDR DRAMs always capture their command on the RISING EDGE of CLK_P;
+// This fake DDR DRAM understands:  Idle, Activate, Read, Write, Automatic Refresh
+// This fake DDR DRAM assumes that all Reads and Writes do automatic precharge.
+// This fake DDR DRAM understands writes to the control register
+// This fake DDR DRAM always does 4-word bursts.  The first word of data
+//           is always the legal one.  The next 3 are that first word inverted.
+// DDR DRAMs always capture their data on BOTH EDGES of DQS
+// DDR DRAMs always output enable the DQS wire to 1'h0 1 clock before
+//           they start sending data
+// DDR DRAMs will be allowed to have a latency of 2, 2.5, 3, 3.5, 4, 4.5
+//           from the read command.
+
+// DDR DRAM commands are made by using the following sighals:
+//   {CKE, CS_L, RAS_L, CAS_L, WS_L}
+//     0    X     X      X     X      power-down
+//     1    1     X      X     X      NOOP
+//     1    0     1      1     1      NOOP
+//     1    0     0      1     1      ACTIVATE
+//     1    0     1      0     1      READ      (A10)
+//     1    0     1      0     0      WRITE     (A10)
+//     1    0     0      1     0      PRECHARGE (A10)
+//     1    0     0      0     1      AUTO REFRESH
+//     1    0     0      0     0      LOAD MODE REGISTER
+//     1    0     1      1     0      not used?
+
+parameter NOOP           = 5'h17;
+parameter LOAD_MODE      = 5'h10;
+parameter ACTIVATE_BANK  = 5'h13;
+parameter READ_BANK      = 5'h15;
+parameter WRITE_BANK     = 5'h14;
+parameter PRECHARGE_BANK = 5'h12;
+parameter REFRESH_BANK   = 5'h11;
+
+  wire   [4:0] control_wires = {CKE, CS_L, RAS_L, CAS_L, WE_L};
+
 // This simple-minded DRAM assumes that all transactions are valid.
-// Therefore, it always gathers RAS and CAS address information, even
+// Therefore, it always captures RAS and CAS address information, even
 //   if there is an obvious protocol violation.
 
   reg    [NUM_ADDR_BITS - 1 : 0] Captured_RAS_Address;
@@ -498,6 +536,92 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
   reg    [NUM_ADDR_BITS - 1 : 0] Captured_CAS_Address;
   reg    [1:0] Captured_CAS_Bank_Selects;
 
+  reg     RAS_Address_Valid;
+  reg     DRAM_Address_Pipeline_Full;
+  reg     DRAM_Read_Requested;
+
+  initial
+  begin
+    RAS_Address_Valid <= 1'b0;
+    DRAM_Address_Pipeline_Full <= 1'b0;
+  end
+
+// Capture RAS and CAS address information
+  always @(posedge CLK_P)
+  begin
+    if ((control_wires[4:0] == ACTIVATE_BANK) & (BA[1:0] == bank_num[1:0]))
+    begin
+      Captured_RAS_Address[NUM_ADDR_BITS - 1 : 0] <= A[NUM_ADDR_BITS - 1 : 0];
+      Captured_RAS_Bank_Selects[1:0] <= BA[1 : 0];
+      RAS_Address_Valid <= 1'b1;
+      Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0] <=
+                Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0];
+      Captured_CAS_Bank_Selects[1:0] <= Captured_CAS_Bank_Selects[1:0];
+      DRAM_Read_Requested <= 1'b0;
+      DRAM_Address_Pipeline_Full <= 1'b0;
+    end
+    else if ((control_wires[4:0] == READ_BANK) & (BA[1:0] == bank_num[1:0]))
+    begin
+      Captured_RAS_Address[NUM_ADDR_BITS - 1 : 0] <=
+                Captured_RAS_Address[NUM_ADDR_BITS - 1 : 0];
+      Captured_RAS_Bank_Selects[1:0] <= Captured_RAS_Bank_Selects[1:0];
+      if (A[10] == 1'b1) // automatic precharge
+        RAS_Address_Valid <= 1'b0;
+      else
+        RAS_Address_Valid <= 1'b1;
+      Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0] <= A[NUM_ADDR_BITS - 1 : 0];
+      Captured_CAS_Bank_Selects[1:0] <= BA[1 : 0];
+      DRAM_Read_Requested <= 1'b1;
+      DRAM_Address_Pipeline_Full <= 1'b1;
+      if (RAS_Address_Valid == 1'b0)
+      begin
+        $display ("*** %m DRAM accessed for Read without first doing an Activate %t", $time);
+      end
+    end
+    else if ((control_wires[4:0] == WRITE_BANK) & (BA[1:0] == bank_num[1:0]))
+    begin
+      Captured_RAS_Address[NUM_ADDR_BITS - 1 : 0] <=
+                Captured_RAS_Address[NUM_ADDR_BITS - 1 : 0];
+      Captured_RAS_Bank_Selects[1:0] <= Captured_RAS_Bank_Selects[1:0];
+      if (A[10] == 1'b1) // automatic precharge
+        RAS_Address_Valid <= 1'b0;
+      else
+        RAS_Address_Valid <= 1'b1;
+      Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0] <= A[NUM_ADDR_BITS - 1 : 0];
+      Captured_CAS_Bank_Selects[1:0] <= BA[1 : 0];
+      DRAM_Read_Requested <= 1'b0;
+      DRAM_Address_Pipeline_Full <= 1'b1;
+      if (RAS_Address_Valid == 1'b0)
+      begin
+        $display ("*** %m DRAM accessed for Write without first doing an Activate %t", $time);
+      end
+    end
+    else if (   (control_wires[4:0] == PRECHARGE_BANK)
+              & ((BA[1:0] == bank_num[1:0]) | (A[10] == 1'b1)))
+    begin
+      Captured_RAS_Address[NUM_ADDR_BITS - 1 : 0] <=
+                Captured_RAS_Address[NUM_ADDR_BITS - 1 : 0];
+      Captured_RAS_Bank_Selects[1:0] <= Captured_RAS_Bank_Selects[1:0];
+      RAS_Address_Valid <= 1'b0;
+      Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0] <=
+                Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0];
+      Captured_CAS_Bank_Selects[1:0] <= Captured_CAS_Bank_Selects[1:0];
+      DRAM_Read_Requested <= 1'b0;
+      DRAM_Address_Pipeline_Full <= 1'b0;
+    end
+    else  // NOOP, Load Mode Register, Refresh, Unallocated
+    begin
+      Captured_RAS_Address[NUM_ADDR_BITS - 1 : 0] <=
+                Captured_RAS_Address[NUM_ADDR_BITS - 1 : 0];
+      Captured_RAS_Bank_Selects[1:0] <= Captured_RAS_Bank_Selects[1:0];
+      RAS_Address_Valid <= RAS_Address_Valid;
+      Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0] <=
+                Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0];
+      Captured_CAS_Bank_Selects[1:0] <= Captured_CAS_Bank_Selects[1:0];
+      DRAM_Read_Requested <= 1'b0;
+      DRAM_Address_Pipeline_Full <= 1'b0;
+    end
+  end
 
 // This debugging DRAM requires that entire 4-word bursts be done.
 // At present, this design does not implement DM masking.
@@ -540,63 +664,56 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
     Sync_Write_Data_Even[NUM_DATA_BITS - 1 : 0] <=
                 Delay_Write_Data_Even[NUM_DATA_BITS - 1 : 0];
     Sync_Write_Data_Odd[NUM_DATA_BITS - 1 : 0] <=
-                Delay_Write_Data_Odd[NUM_DATA_BITS - 1 : 0];
+                DQS_Captured_Write_Data_Odd[NUM_DATA_BITS - 1 : 0];
     Sync_Write_DM_Even <= Delay_Write_DM_Even;
     Sync_Write_DM_Odd <= DQS_Captured_Write_DM_Odd;
   end
 
+// For Writes, the Address comes in at time T0.
+// Data is available on the external DQ wires at time T1 and T2;
+// Data is available as Sync_Write_Data at times T2 and T3
+// The SRAM can be written as soon as the last data is available,
+//   which seems to be at T4.
+//
+// For Reads, the Address comes in at time T0.
+// The DQS signal needs to start being driven to 1'b0 at T1
+// The DQ signals need to start being driven with valid data at T2
+// Both DQS and DQ need to be valid until the beginning of T4
+//
+// At first glance, it would seem that the Read Data needs to be
+//   grabbed out of the DRAM before, or at the same time, as the
+//   data is written into the DRAM.
+// Fortunately, the parameter TWTR says that there must be 1 extra
+//   clock between a Write and a Read to serve as a Write Recovery
+//   time.  Write data is available out of the internal Sync DRAM
+//   storage element in plenty of time to get to the bus.
+
+  reg    [NUM_DATA_BITS - 1 : 0] Delayed_Sync_Write_Data_Even;
+  reg    [NUM_DATA_BITS - 1 : 0] Delayed_Sync_Write_Data_Odd;
+  reg    [NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0] Delayed_DRAM_Address;
+
+// Pipeline delay the Read and Write address so that it stays available
+//   all the way up to the time the data is available and the whole
+//   lot of it is written to storage.
+
+
 // Storage
-  wire   [7 : 0] data_out;
-  wire   [7 : 0] data_in;
+  wire   [(4 * NUM_DATA_BITS) - 1 : 0] data_out;
+  wire   [(4 * NUM_DATA_BITS) - 1 : 0] data_in;
   wire   [NUM_ADDR_BITS - 1 : 0] address;
   wire    read_enable, write_enable;
 
 sram_for_debugging_sync
-# ( NUM_ADDR_BITS,
-    8  // NUM_DATA_BITS
+# ( NUM_ADDR_BITS + NUM_COL_BITS,
+    4 * NUM_DATA_BITS  // NUM_DATA_BITS
   ) storage (
-  .data_out                   (data_out[7 : 0]),
-  .data_in                    (data_in[7 : 0]),
-  .address                    (address[NUM_ADDR_BITS - 1 : 0]),
+  .data_out                   (data_out[(4 * NUM_DATA_BITS) - 1 : 0]),
+  .data_in                    (data_in[(4 * NUM_DATA_BITS) - 1 : 0]),
+  .address                    (Delayed_DRAM_Address[NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0]),
   .read_enable                (read_enable),
   .write_enable               (write_enable),
   .clk                        (CLK_P)
 );
-
-// DDR DRAMs always capture their command on the RISING EDGE of CLK_P;
-// This fake DDR DRAM understands:  Idle, Activate, Read, Write, Automatic Refresh
-// This fake DDR DRAM assumes that all Reads and Writes do automatic precharge.
-// This fake DDR DRAM understands writes to the control register
-// This fake DDR DRAM always does 4-word bursts.  The first word of data
-//           is always the legal one.  The next 3 are that first word inverted.
-// DDR DRAMs always capture their data on BOTH EDGES of DQS
-// DDR DRAMs always output enable the DQS wire to 1'h0 1 clock before
-//           they start sending data
-// DDR DRAMs will be allowed to have a latency of 2, 2.5, 3, 3.5, 4, 4.5
-//           from the read command.
-
-// DDR DRAM commands are made by using the following sighals:
-//   {CKE, CS_L, RAS_L, CAS_L, WS_L}
-//     0    X     X      X     X      power-down
-//     1    1     X      X     X      NOOP
-//     1    0     1      1     1      NOOP
-//     1    0     0      1     1      ACTIVATE
-//     1    0     1      0     1      READ      (A10)
-//     1    0     1      0     0      WRITE     (A10)
-//     1    0     0      1     0      PRECHARGE (A10)
-//     1    0     0      0     1      AUTO REFRESH
-//     1    0     0      0     0      LOAD MODE REGISTER
-//     1    0     1      1     0      not used?
-
-parameter NOOP           = 5'h17;
-parameter LOAD_MODE      = 5'h10;
-parameter ACTIVATE_BANK  = 5'h13;
-parameter READ_BANK      = 5'h15;
-parameter WRITE_BANK     = 5'h14;
-parameter PRECHARGE_BANK = 5'h12;
-parameter REFRESH_BANK   = 5'h11;
-
-  wire   [4:0] control_wires = {CKE, CS_L, RAS_L, CAS_L, WE_L};
 
 // These are the important DDR DRAM timing specs in nanoseconds:
 parameter LOAD_MODE_REGISTER_PERIOD_TMRD   = 15.0;  // stay idle after load mode
@@ -2050,46 +2167,6 @@ parameter BANK_STATE_WIDTH = 4;
           refresh_counter[3:0]              <= (refresh_counter[3:0] != 4'h0)
                                              ? (refresh_counter[3:0] - 4'h1) : 4'h0;
         end
-
-/*
-        begin
-          load_mode_delay_counter[3:0]      <= (load_mode_delay_counter[3:0] != 4'h0)
-                                             ? (load_mode_delay_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
-                                             ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
-                                             ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
-                                             ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
-                                             ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
-          burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
-                                             ? (burst_counter[3:0] - 4'h1) : 4'h0;
-          read_to_write_counter [3:0]       <= (read_to_write_counter[3:0] != 4'h0)
-                                             ? (read_to_write_counter[3:0] - 4'h1) : 4'h0;
-          write_to_read_counter [3:0]       <= (write_to_read_counter[3:0] != 4'h0)
-                                             ? (write_to_read_counter[3:0] - 4'h1) : 4'h0;
-          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] != 4'h0)
-                                             ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
-          precharge_counter[3:0]            <= (precharge_counter[3:0] != 4'h0)
-                                             ? (precharge_counter[3:0] - 4'h1) : 4'h0;
-          refresh_counter[3:0]              <= (refresh_counter[3:0] != 4'h0)
-                                             ? (refresh_counter[3:0] - 4'h1) : 4'h0;
-
-
-          load_mode_delay_counter[3:0]      <= LOAD_MODE_REGISTER_CYCLES;
-          act_a_to_act_b_counter[3:0]       <= ACT_A_TO_ACT_B_CYCLES;
-          act_to_read_or_write_counter[3:0] <= ACT_TO_READ_OR_WRITE_CYCLES;
-          act_to_precharge_counter[3:0]     <= ACT_TO_PRECHARGE_CYCLES;
-          act_a_to_act_a_counter[3:0]       <= ACT_A_TO_ACT_A_CYCLES;
-          burst_counter[3:0]                <= 4'h2;
-          read_to_write_counter [3:0]       <= READ_TO_WRITE_CYCLES;
-          write_to_read_counter [3:0]       <= WRITE_TO_READ_CYCLES;
-          write_recovery_counter[3:0]       <= WRITE_RECOVERY_TO_PRECHARGE_CYCLES;
-          precharge_counter[3:0]            <= PRECHARGE_CYCLES;
-          refresh_counter[3:0]              <= REFRESH_CYCLES;
-        end
-*/
 
       default:
         begin
