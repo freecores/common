@@ -88,11 +88,14 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: ddr_2_dram_for_debugging.v,v 1.7 2001-11-02 11:52:28 bbeaver Exp $
+// $Id: ddr_2_dram_for_debugging.v,v 1.8 2001-11-06 12:33:15 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.10  2001/11/06 12:41:27  Blue Beaver
+// no message
+//
 // Revision 1.9  2001/11/02 11:59:30  Blue Beaver
 // no message
 //
@@ -142,6 +145,7 @@ parameter NUM_ADDR_BITS = 13;
 parameter NUM_COL_BITS  = 11;
 parameter NUM_DATA_BITS =  4;
 parameter NUM_WORDS_IN_TEST_MEMORY = 32;
+parameter ENABLE_TIMING_CHECKS = 1;
 
   inout  [NUM_DATA_BITS - 1 : 0] DQ;
   inout   DQS;
@@ -314,18 +318,14 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
 //    LATENCY,
 //parameter LATENCY = 2.0;  // might be 2.0, 2.5, 3.0, 3.5, 4.0
 
-  assign  DQ = force_x ? {NUM_DATA_BITS{1'hX}} : {NUM_DATA_BITS{1'h0}};
-  assign  DQS = force_x ? 1'hX : 1'h0;
-
-
-
 ddr_2_dram_single_bank
 # ( FREQUENCY,
     LATENCY,
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
-    NUM_WORDS_IN_TEST_MEMORY
+    NUM_WORDS_IN_TEST_MEMORY,
+    1  // enable_timing_checks
   ) ddr_2_dram_single_bank_0 (
   .DQ                         (DQ[NUM_DATA_BITS - 1 : 0]),
   .DQS                        (DQS),
@@ -357,7 +357,8 @@ ddr_2_dram_single_bank
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
-    NUM_WORDS_IN_TEST_MEMORY
+    NUM_WORDS_IN_TEST_MEMORY,
+    0  // enable_timing_checks
   ) ddr_2_dram_single_bank_1 (
   .DQ                         (DQ[NUM_DATA_BITS - 1 : 0]),
   .DQS                        (DQS),
@@ -389,7 +390,8 @@ ddr_2_dram_single_bank
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
-    NUM_WORDS_IN_TEST_MEMORY
+    NUM_WORDS_IN_TEST_MEMORY,
+    0  // enable_timing_checks
   ) ddr_2_dram_single_bank_2 (
   .DQ                         (DQ[NUM_DATA_BITS - 1 : 0]),
   .DQS                        (DQS),
@@ -421,7 +423,8 @@ ddr_2_dram_single_bank
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
-    NUM_WORDS_IN_TEST_MEMORY
+    NUM_WORDS_IN_TEST_MEMORY,
+    0  // enable_timing_checks
   ) ddr_2_dram_single_bank_3 (
   .DQ                         (DQ[NUM_DATA_BITS - 1 : 0]),
   .DQS                        (DQS),
@@ -469,9 +472,10 @@ module ddr_2_dram_single_bank (
 parameter FREQUENCY = 133.0;  // might be 100, 125, 166, any other frequency
 parameter LATENCY = 2.0;  // might be 2.0, 2.5, 3.0, 3.5, 4.0, 4.5
 parameter NUM_ADDR_BITS = 13;
-parameter NUM_COL_BITS  = 11;
+parameter NUM_COL_BITS  = 12;
 parameter NUM_DATA_BITS =  4;
 parameter NUM_WORDS_IN_TEST_MEMORY = 32;
+parameter ENABLE_TIMING_CHECKS = 1;
 
   input  [NUM_DATA_BITS - 1 : 0] DQ;
   input   DQS;
@@ -537,14 +541,16 @@ parameter REFRESH_BANK   = 5'h11;
   reg    [1:0] Captured_CAS_Bank_Selects;
 
   reg     RAS_Address_Valid;
-  reg     DRAM_Address_Pipeline_Full;
+  reg     Full_Address_Valid;
   reg     DRAM_Read_Requested;
 
+// synopsys translate_off
   initial
-  begin
+  begin  // only for debug
     RAS_Address_Valid <= 1'b0;
-    DRAM_Address_Pipeline_Full <= 1'b0;
+    Full_Address_Valid <= 1'b0;
   end
+// synopsys translate_on
 
 // Capture RAS and CAS address information
   always @(posedge CLK_P)
@@ -558,7 +564,7 @@ parameter REFRESH_BANK   = 5'h11;
                 Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0];
       Captured_CAS_Bank_Selects[1:0] <= Captured_CAS_Bank_Selects[1:0];
       DRAM_Read_Requested <= 1'b0;
-      DRAM_Address_Pipeline_Full <= 1'b0;
+      Full_Address_Valid <= 1'b0;
     end
     else if ((control_wires[4:0] == READ_BANK) & (BA[1:0] == bank_num[1:0]))
     begin
@@ -572,7 +578,7 @@ parameter REFRESH_BANK   = 5'h11;
       Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0] <= A[NUM_ADDR_BITS - 1 : 0];
       Captured_CAS_Bank_Selects[1:0] <= BA[1 : 0];
       DRAM_Read_Requested <= 1'b1;
-      DRAM_Address_Pipeline_Full <= 1'b1;
+      Full_Address_Valid <= 1'b1;
       if (RAS_Address_Valid == 1'b0)
       begin
         $display ("*** %m DRAM accessed for Read without first doing an Activate %t", $time);
@@ -590,7 +596,7 @@ parameter REFRESH_BANK   = 5'h11;
       Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0] <= A[NUM_ADDR_BITS - 1 : 0];
       Captured_CAS_Bank_Selects[1:0] <= BA[1 : 0];
       DRAM_Read_Requested <= 1'b0;
-      DRAM_Address_Pipeline_Full <= 1'b1;
+      Full_Address_Valid <= 1'b1;
       if (RAS_Address_Valid == 1'b0)
       begin
         $display ("*** %m DRAM accessed for Write without first doing an Activate %t", $time);
@@ -607,7 +613,7 @@ parameter REFRESH_BANK   = 5'h11;
                 Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0];
       Captured_CAS_Bank_Selects[1:0] <= Captured_CAS_Bank_Selects[1:0];
       DRAM_Read_Requested <= 1'b0;
-      DRAM_Address_Pipeline_Full <= 1'b0;
+      Full_Address_Valid <= 1'b0;
     end
     else  // NOOP, Load Mode Register, Refresh, Unallocated
     begin
@@ -619,7 +625,7 @@ parameter REFRESH_BANK   = 5'h11;
                 Captured_CAS_Address[NUM_ADDR_BITS - 1 : 0];
       Captured_CAS_Bank_Selects[1:0] <= Captured_CAS_Bank_Selects[1:0];
       DRAM_Read_Requested <= 1'b0;
-      DRAM_Address_Pipeline_Full <= 1'b0;
+      Full_Address_Valid <= 1'b0;
     end
   end
 
@@ -643,19 +649,19 @@ parameter REFRESH_BANK   = 5'h11;
     DQS_Captured_Write_DM_Even <= DM;
   end
 
-// Capture data on falling edge of DQS
-  always @(negedge DQS)
-  begin
-    DQS_Captured_Write_Data_Odd[NUM_DATA_BITS - 1 : 0] <= DQ[NUM_DATA_BITS - 1 : 0];
-    DQS_Captured_Write_DM_Odd <= DM;
-  end
-
 // Delay data captured on rising edge so that it can be captured the NEXT rising edge
   always @(negedge CLK_P)
   begin
     Delay_Write_Data_Even[NUM_DATA_BITS - 1 : 0] <=
                 DQS_Captured_Write_Data_Even[NUM_DATA_BITS - 1 : 0];
     Delay_Write_DM_Even <= DQS_Captured_Write_DM_Even;
+  end
+
+// Capture data on falling edge of DQS
+  always @(negedge DQS)
+  begin
+    DQS_Captured_Write_Data_Odd[NUM_DATA_BITS - 1 : 0] <= DQ[NUM_DATA_BITS - 1 : 0];
+    DQS_Captured_Write_DM_Odd <= DM;
   end
 
 // Capture a data item pair into the positive edge clock domain.
@@ -669,7 +675,7 @@ parameter REFRESH_BANK   = 5'h11;
     Sync_Write_DM_Odd <= DQS_Captured_Write_DM_Odd;
   end
 
-// For Writes, the Address comes in at time T0.
+// For Writes, the CAS Address comes in at time T0.
 // Data is available on the external DQ wires at time T1 and T2;
 // Data is available as Sync_Write_Data at times T2 and T3
 // The SRAM can be written as soon as the last data is available,
@@ -688,30 +694,68 @@ parameter REFRESH_BANK   = 5'h11;
 //   time.  Write data is available out of the internal Sync DRAM
 //   storage element in plenty of time to get to the bus.
 
-  reg    [NUM_DATA_BITS - 1 : 0] Delayed_Sync_Write_Data_Even;
-  reg    [NUM_DATA_BITS - 1 : 0] Delayed_Sync_Write_Data_Odd;
-  reg    [NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0] Delayed_DRAM_Address;
+  reg    [NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0] DRAM_Address_T1;
+  reg    [NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0] DRAM_Address_T2;
+  reg    [NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0] DRAM_Address_T3;
+  reg    [1:0] BANK_Address_T1, BANK_Address_T2, BANK_Address_T3;
+  reg     DRAM_Read_T1, DRAM_Read_T2, DRAM_Read_T3;
+  reg     DRAM_Full_Addr_Valid_T1, DRAM_Full_Addr_Valid_T2, DRAM_Full_Addr_Valid_T3;
+  reg    [NUM_DATA_BITS - 1 : 0] Delayed_Sync_Write_Data_Even_T3;
+  reg    [NUM_DATA_BITS - 1 : 0] Delayed_Sync_Write_Data_Odd_T3;
 
 // Pipeline delay the Read and Write address so that it stays available
 //   all the way up to the time the data is available and the whole
 //   lot of it is written to storage.
 
+  always @(posedge CLK_P)
+  begin
+    DRAM_Address_T1[NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0] <=
+                {Captured_RAS_Address[NUM_ADDR_BITS - 1 : 0],
+                 Captured_CAS_Address[NUM_COL_BITS - 1 : 11],  // skip address bit 10
+                 Captured_CAS_Address[9 : 0]};
+    DRAM_Address_T2[NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0] <=
+                DRAM_Address_T1[NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0];
+    DRAM_Address_T3[NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0] <=
+                DRAM_Address_T2[NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0];
+    BANK_Address_T1[1:0] <= Captured_CAS_Bank_Selects[1:0];
+    BANK_Address_T2[1:0] <= BANK_Address_T1[1:0];
+    BANK_Address_T3[1:0] <= BANK_Address_T2[1:0];
+    DRAM_Read_T1 <= DRAM_Read_Requested;
+    DRAM_Read_T2 <= DRAM_Read_T1;
+    DRAM_Read_T3 <= DRAM_Read_T2;
+    DRAM_Full_Addr_Valid_T1 <= Full_Address_Valid;
+    DRAM_Full_Addr_Valid_T2 <= DRAM_Full_Addr_Valid_T1;
+    DRAM_Full_Addr_Valid_T3 <= DRAM_Full_Addr_Valid_T2;
+    Delayed_Sync_Write_Data_Even_T3[NUM_DATA_BITS - 1 : 0] <=
+                Sync_Write_Data_Even[NUM_DATA_BITS - 1 : 0];
+    Delayed_Sync_Write_Data_Odd_T3[NUM_DATA_BITS - 1 : 0] <=
+                Sync_Write_Data_Odd[NUM_DATA_BITS - 1 : 0];
+  end
+
+
+  assign  DQ_E_oe = 1'b0;
+  assign  DQ_O_oe = 1'b0;
+  assign  DQS_E_oe = 1'b0;
+  assign  DQS_O_oe = 1'b0;
 
 // Storage
-  wire   [(4 * NUM_DATA_BITS) - 1 : 0] data_out;
-  wire   [(4 * NUM_DATA_BITS) - 1 : 0] data_in;
-  wire   [NUM_ADDR_BITS - 1 : 0] address;
-  wire    read_enable, write_enable;
 
+  wire   [(4 * NUM_DATA_BITS) - 1 : 0] write_data =
+                {Sync_Write_Data_Odd[NUM_DATA_BITS - 1 : 0],
+                 Sync_Write_Data_Even[NUM_DATA_BITS - 1 : 0],
+                 Delayed_Sync_Write_Data_Odd_T3[NUM_DATA_BITS - 1 : 0],
+                 Delayed_Sync_Write_Data_Even_T3[NUM_DATA_BITS - 1 : 0]};
+  wire   [(4 * NUM_DATA_BITS) - 1 : 0] read_data;
+                 
 sram_for_debugging_sync
 # ( NUM_ADDR_BITS + NUM_COL_BITS,
     4 * NUM_DATA_BITS  // NUM_DATA_BITS
   ) storage (
-  .data_out                   (data_out[(4 * NUM_DATA_BITS) - 1 : 0]),
-  .data_in                    (data_in[(4 * NUM_DATA_BITS) - 1 : 0]),
-  .address                    (Delayed_DRAM_Address[NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0]),
-  .read_enable                (read_enable),
-  .write_enable               (write_enable),
+  .data_out                   (read_data[(4 * NUM_DATA_BITS) - 1 : 0]),
+  .data_in                    (write_data[(4 * NUM_DATA_BITS) - 1 : 0]),
+  .address                    (DRAM_Address_T3[NUM_ADDR_BITS + NUM_COL_BITS - 1 : 0]),
+  .read_enable                (DRAM_Full_Addr_Valid_T3 &  DRAM_Read_T3),
+  .write_enable               (DRAM_Full_Addr_Valid_T3 & ~DRAM_Read_T3),
   .clk                        (CLK_P)
 );
 
@@ -806,6 +850,8 @@ parameter BANK_STATE_WIDTH = 4;
 
   always @(posedge CLK_P)
   begin
+    if (ENABLE_TIMING_CHECKS != 0)
+    begin  // if out the entire case statement!
     case (bank_state[BANK_STATE_WIDTH - 1 : 0])
       POWER_ON:
         begin
@@ -2175,6 +2221,7 @@ parameter BANK_STATE_WIDTH = 4;
           Timing_Error <= 1'b1;
         end
     endcase
+    end  // if out the entire case statement!
   end
 endmodule
 
@@ -2206,13 +2253,14 @@ parameter DATA_BUS_WIDTH = 4;
 
   wire   [DATA_BUS_WIDTH - 1 : 0] DQ;
   wire    DQS;
+
   reg     DM;
   reg    [12:0] A;
   reg    [1:0] BA;
   reg     RAS_L, CAS_L, WE_L, CS_L, CKE;
   reg    [DATA_BUS_WIDTH - 1 : 0] DQ_out_0;
   reg    [DATA_BUS_WIDTH - 1 : 0] DQ_out_1;
-  reg     DQ_oe;
+  reg     DQ_oe_0, DQ_oe_1;
   reg     DQS_out;
   reg     DQS_oe;
 
@@ -2240,6 +2288,11 @@ parameter LOAD_MODE = 5'h10;
 
   initial
   begin
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'hZ;
+DQ_oe_0 <= 1'b0;
+DQ_out_1[DATA_BUS_WIDTH - 1 : 0] <= 4'hZ;
+DQ_oe_1 <= 1'b0;
+
     CKE <= 1'b1;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     DQ_oe <= 1'b0;  DQS_oe <= 1'b0;
@@ -2263,21 +2316,38 @@ A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= WRITE;
     @ (posedge CLK_P) ;  // write DRAM
 
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'h1;
+DQ_out_1[DATA_BUS_WIDTH - 1 : 0] <= 4'hZ;
+
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
+
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'h2;
+DQ_out_1[DATA_BUS_WIDTH - 1 : 0] <= 4'hE;
 
 A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= WRITE;
     @ (posedge CLK_P) ;  // write DRAM
 
-    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
-    @ (posedge CLK_P) ;  // noop + data
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'h3;
+DQ_out_1[DATA_BUS_WIDTH - 1 : 0] <= 4'hD;
 
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'h4;
+DQ_out_1[DATA_BUS_WIDTH - 1 : 0] <= 4'hC;
+
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
+
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'hZ;
+DQ_out_1[DATA_BUS_WIDTH - 1 : 0] <= 4'hB;
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+DQ_out_1[DATA_BUS_WIDTH - 1 : 0] <= 4'hZ;
 
 A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= READ;
@@ -2324,12 +2394,15 @@ A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= WRITE;
     @ (posedge CLK_P) ;  // write
 
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'hE;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'hD;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'hZ;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
@@ -2379,12 +2452,15 @@ A[12:0] <= 13'h400;  BA[1:0] <= 2'h0;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= WRITE;
     @ (posedge CLK_P) ;  // write
 
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'hB;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'h7;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
+DQ_out_0[DATA_BUS_WIDTH - 1 : 0] <= 4'hZ;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
@@ -2429,15 +2505,29 @@ A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
 
   end
 
+
+
+
+  assign  DQ[DATA_BUS_WIDTH - 1 : 0] =
+                  (   (DQ_out_0[DATA_BUS_WIDTH - 1 : 0] !== {DATA_BUS_WIDTH{1'bZ}})
+                    & (CLK_N == 1'b1) )
+                ? DQ_out_0[DATA_BUS_WIDTH - 1 : 0]
+                : ( (   (DQ_out_1[DATA_BUS_WIDTH - 1 : 0] !== {DATA_BUS_WIDTH{1'bZ}})
+                      & (CLK_P == 1'b1) )
+                  ? DQ_out_1[DATA_BUS_WIDTH - 1 : 0]
+                  : {DATA_BUS_WIDTH{1'bZ}});
+
 ddr_2_dram
 # ( 100.0,  // frequency
     2.0,  // latency
     13,  // num_addr_bits
-    11,  // num_col_bits
-     4,  // num_data_bits
-    32   // num_words_in_test_memory
+    12,  // num_col_bits
+     4 * DATA_BUS_WIDTH,  // num_data_bits
+    32,  // num_words_in_test_memory
+     1
   ) ddr_2_dram (
-  .DQ                         (DQ[DATA_BUS_WIDTH - 1 : 0]),
+  .DQ                         ({DQ[DATA_BUS_WIDTH - 1 : 0], DQ[DATA_BUS_WIDTH - 1 : 0],
+                                DQ[DATA_BUS_WIDTH - 1 : 0], DQ[DATA_BUS_WIDTH - 1 : 0]}),
   .DQS                        (DQS),
   .DM                         (DM),
   .A                          (A[12:0]),

@@ -53,11 +53,14 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: sram_for_debugging_sync.v,v 1.1 2001-10-02 06:16:52 bbeaver Exp $
+// $Id: sram_for_debugging_sync.v,v 1.2 2001-11-06 12:33:15 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2001/11/06 12:41:27  Blue Beaver
+// no message
+//
 // Revision 1.2  2001/10/02 06:22:08  Blue Beaver
 // no message
 //
@@ -110,6 +113,7 @@ module sram_for_debugging_sync (
   begin
     if (write_enable == 1'b1)
     begin
+    $display ("writing %x at %x %t", data_in[NUM_DATA_BITS - 1 : 0], address[NUM_ADDR_BITS - 1 : 0], $time);
       address_storage[write_counter[4:0]] = address[NUM_ADDR_BITS - 1 : 0];
       data_storage[write_counter[4:0]] = data_in[NUM_DATA_BITS - 1 : 0];
       for (j = 0; j < NUM_ADDR_BITS; j = j + 1)
@@ -134,7 +138,7 @@ module sram_for_debugging_sync (
 
   always @(posedge clk)
   begin
-    if ((read_enable !== 1'b1) | ((^address[NUM_DATA_BITS - 1 : 0]) === 1'bX))  // no read, return X's
+    if ((read_enable !== 1'b1) | ((^address[NUM_ADDR_BITS - 1 : 0]) === 1'bX))  // no read, return X's
     begin
       data_out[NUM_DATA_BITS - 1 : 0] = {NUM_DATA_BITS{1'bX}};
     end
