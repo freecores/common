@@ -67,6 +67,13 @@
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1.1.1  2001/09/14 09:57:09  rherveille
+// Major cleanup.
+// Files are now compliant to Altera & Xilinx memories.
+// Memories are now compatible, i.e. drop-in replacements.
+// Added synthesizeable generic FPGA description.
+// Created "generic_memories" cvs entry.
+//
 // Revision 1.2  2001/07/30 05:38:02  lampret
 // Adding empty directories required by HDL coding guidelines
 //
@@ -266,7 +273,7 @@ module generic_spram(
 	//
 	// Data output drivers
 	//
-	assign do = (oe) ? q : {dw{1'bz}};
+	assign do = (oe & ce) ? q : {dw{1'bz}};
 
 	//
 	// RAM read and write
