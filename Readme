@@ -12,6 +12,9 @@
 //  As a courtesy, each file could also have a small entry here to make it
 //    easy to browse the directory looking for interesting stuff.
 //
+//  "opencores_copyright.v" is an example of a copyright file one might
+//    include to control the use and abuse of a file stored in this web site.
+//
 //  "synchronizer_flop.v" is a behaviorial description of a 1-bit flop.
 //    It should be manually instantiated in EACH AND EVERY MODULE which
 //      uses a flop to synchronize a signal from one clock domain to another.
@@ -21,5 +24,13 @@
 //      NOT convert a valid value into an X due to setup timing being violated.
 //    This module makes it possible to simulate gate-level netlists with
 //      multiple clock domains without fear of making inappropriate X's.
+//
+//  "grey_to_binary.v" is an example of code which takes a binary number
+//      and converts it to grey code, and vice versa.
+//    This module has a parameter which describes how wide the operands
+//      are.
+//    This module does not use for-loops to generate the functions.  Instead,
+//      it manually does the translation for widths up to 16 bits.
+//    If the user wants fewer bits, the synthesis tool removes the extra.
 //
 

@@ -1,5 +1,5 @@
 //===========================================================================
-// $Id: synchronizer_flop.v,v 1.1.1.1 2001-09-03 10:24:58 bbeaver Exp $
+// $Id: synchronizer_flop.v,v 1.2 2001-09-03 12:16:36 bbeaver Exp $
 //
 //////////////////////////////////////////////////////////////////////
 ////                                                              ////
@@ -62,6 +62,12 @@
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2001/09/03 11:16:00  Blue Beaver
+// no message
+//
+// Revision 1.1.1.1  2001/09/03 10:24:58  bbeaver
+// no message
+//
 // Revision 1.1  2001/09/02 11:32:03  Blue Beaver
 // no message
 //

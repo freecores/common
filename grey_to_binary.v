@@ -1,69 +1,74 @@
-//===========================================================================
-// $Id: grey_to_binary.v,v 1.1 2001-09-03 11:32:10 bbeaver Exp $
+//////////////////////////////////////////////////////////////////////
+////                                                              ////
+//// grey_to_binary #(N), binary_to_grey #(N)                     ////
+////                                                              ////
+//// This file is part of the general opencores effort.           ////
+//// <http://www.opencores.org/cores/misc/>                       ////
+////                                                              ////
+//// Module Description:                                          ////
+////    Example of how to convert Grey Code to Binary.            ////
+////    Example of how to convert Binary to Grey Code.            ////
+////                                                              ////
+//// CRITICAL USAGE NOTE:                                         ////
+////    These functions produce combinational outputs which       ////
+////      have glitches.  To use these safely, the outputs        ////
+////      must be latched using the same clock before and         ////
+////      after the combinational function.                       ////
+////                                                              ////
+////    There are other sequences of numbers which share the      ////
+////      property of Grey Code that only 1 bit transitions per   ////
+////      value change.                                           ////
+////    The sequence 0x00, 0x1, 0x3, 0x2, 0x6, 0x4 is one such    ////
+////      sequence.                                               ////
+////    It should be possible to make a library which counts      ////
+////      in sequences less than 2**n long, yet which still       ////
+////      change only 1 bot per increment.                        ////
+////                                                              ////
+//// To Do:                                                       ////
+//// Might make this handle more than 16 bits.                    ////
+////                                                              ////
+//// Author(s):                                                   ////
+//// - Anonymous                                                  ////
+////                                                              ////
+//////////////////////////////////////////////////////////////////////
+////                                                              ////
+//// Copyright (C) 2000 Anonymous and OPENCORES.ORG               ////
+////                                                              ////
+//// This source file may be used and distributed without         ////
+//// restriction provided that this copyright statement is not    ////
+//// removed from the file and that any derivative work contains  ////
+//// the original copyright notice and the associated disclaimer. ////
+////                                                              ////
+//// This source file is free software; you can redistribute it   ////
+//// and/or modify it under the terms of the GNU Lesser General   ////
+//// Public License as published by the Free Software Foundation; ////
+//// either version 2.1 of the License, or (at your option) any   ////
+//// later version.                                               ////
+////                                                              ////
+//// This source is distributed in the hope that it will be       ////
+//// useful, but WITHOUT ANY WARRANTY; without even the implied   ////
+//// warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR      ////
+//// PURPOSE. See the GNU Lesser General Public License for more  ////
+//// details.                                                     ////
+////                                                              ////
+//// You should have received a copy of the GNU Lesser General    ////
+//// Public License along with this source; if not, download it   ////
+//// from <http://www.opencores.org/lgpl.shtml>                   ////
+////                                                              ////
+//////////////////////////////////////////////////////////////////////
 //
-// Copyright 2001 Blue Beaver.  All Rights Reserved.
+// $Id: grey_to_binary.v,v 1.2 2001-09-03 12:16:35 bbeaver Exp $
 //
-// Summary:  Example of how to convert Binary to Grey Code.
-//           Example of how to convert Grey Code to Binary.
+// CVS Revision History
 //
-// USAGE NOTE: CRITICAL:  These functions produce combinational outputs
-//           which have glitches.  To use these safely, the outputs
-//           must be latched using the same clock before and after
-//           the combinational function.
+// $Log: not supported by cvs2svn $
+// Revision 1.3  2001/09/03 12:12:44  Blue Beaver
+// no message
 //
-// This library is free software; you can distribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published
-// by the Free Software Foundation; either version 2.1 of the License, or
-// (at your option) any later version.
+// Revision 1.2  2001/09/03 12:09:24  Blue Beaver
+// no message
 //
-// This library is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-// See the GNU Lesser General Public License for more details.
 //
-// You should have received a copy of the GNU Lesser General Public License
-// along with this library.  If not, write to
-// Free Software Foundation, Inc.
-// 59 Temple Place, Suite 330
-// Boston, MA 02111-1307 USA
-//
-// Author's note about this license:  The intention of the Author and of
-// the Gnu Lesser General Public License is that users should be able to
-// use this code for any purpose, including combining it with other source
-// code, combining it with other logic, translated it into a gate-level
-// representation, or projected it into gates in a programmable or
-// hardwired chip, as long as the users of the resulting source, compiled
-// source, or chip are given the means to get a copy of this source code
-// with no new restrictions on redistribution of this source.
-//
-// If you make changes, even substantial changes, to this code, or use
-// substantial parts of this code as an inseparable part of another work
-// of authorship, the users of the resulting IP must be given the means
-// to get a copy of the modified or combined source code, with no new
-// restrictions on redistribution of the resulting source.
-//
-// Separate parts of the combined source code, compiled code, or chip,
-// which are NOT derived from this source code do NOT need to be offered
-// to the final user of the chip merely because they are used in
-// combination with this code.  Other code is not forced to fall under
-// the GNU Lesser General Public License when it is linked to this code.
-// The license terms of other source code linked to this code might require
-// that it NOT be made available to users.  The GNU Lesser General Public
-// License does not prevent this code from being used in such a situation,
-// as long as the user of the resulting IP is given the means to get a
-// copy of this component of the IP with no new restrictions on
-// redistribution of this source.
-//
-// This code was developed using VeriLogger Pro, by Synapticad.
-// Their support is greatly appreciated.
-//
-// NOTE:  There are other sequences of numbers which share the property
-//          of Grey Code that only 1 bit transitions per value change.  The
-//          sequence 0x00, 0x1, 0x3, 0x2, 0x6, 0x4 is one such sequence.
-//        It should be possible to make a library which counts
-//          in sequences less than 2**n long, yet still has this property.
-//
-//===========================================================================
 
 `timescale 1ns/1ps
 
