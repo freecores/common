@@ -63,11 +63,14 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: encode_8b_10b.v,v 1.5 2001-10-26 10:32:13 bbeaver Exp $
+// $Id: encode_8b_10b.v,v 1.6 2001-11-29 09:22:08 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.19  2001/11/29 09:31:11  Blue Beaver
+// no message
+//
 // Revision 1.18  2001/10/26 10:39:43  Blue Beaver
 // no message
 //
@@ -265,7 +268,36 @@ module encode_8b_10b (
 //   by any character starting with 2 1's or 0's, like K.11
 // The false comma character is part in the K.28.7 and part
 //   in the following data byte.  Bad.
- 
+//
+// The following info is found in www.wildpackets.com/compendium/GB/L1-GbEn.html,
+//   in a document headed:
+// "Gigabit Ethernet is Closely Related to Fibre Channel Technology,
+//    going back to 1988!"
+//
+// 8B-10B characters are described as Dn.m, where n gives the low order
+//    5 bits in decimal, and m gives the top 3 bits.
+//
+// Configuration data is transferred as an alternating sequence of:
+// (flips disparity: "C1") K28.5/D21.5/Config_reg[7:0]/Config_reg[15:8]
+// (leaves disparity: "C2") K28.5/D2.2/Config_reg[7:0]/Config_reg[15:8]
+//
+// Idle status is transmitted when ther eis nothing else to send.
+// The link is left in negative disparity.  If it is positive, first
+// "I1" K28.5/D5.6 is sent, which knocks the displarity to negative
+// "I2" K28.5/D16.2 is sent repeatitively to maintain the negative disparity
+//
+// Start of Packet delimiter "S" K27.7
+// End of Packet delimiter "T" K29.7
+// Carrier Extend "R" K23.7
+//
+// An End Of Packet consists of either T/R/I or T/R/R
+// The second is used when a packet follows the previous packet in a burst.
+// "R" is also sent so that a subsequent "I" follows on an even-numbered
+//   code boundry.
+//
+// Error propagation "V"  K30.7
+
+
 // Accumulate the new data.  First, calculate ignoring the running disparity;
   wire   [9:0] first_level_encoded_data;
 
