@@ -39,12 +39,12 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: ddr_2_dimm_for_debugging.v,v 1.1 2001-10-28 12:06:37 bbeaver Exp $
+// $Id: ddr_2_dimm_for_debugging.v,v 1.2 2001-10-29 13:37:57 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
-// Revision 1.1  2001/10/28 11:08:09  bbeaver
+// Revision 1.1  2001/10/29 13:45:02  Blue Beaver
 // no message
 //
 // Revision 1.1  2001/10/28 11:15:47  Blue Beaver
