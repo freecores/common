@@ -1,0 +1,25 @@
+//  This directory contains files which are too small to be projects in themselves.
+//
+//  Examples of such files might be:
+//    prototype copyright files
+//    parameterizable cell libraries
+//    files which implement some interesting low-level function
+//    files which are used as components in several projects
+//
+//  Each file should be self-documenting so that a quick glance would serve
+//    to explain what it is and why it is here.
+//
+//  As a courtesy, each file could also have a small entry here to make it
+//    easy to browse the directory looking for interesting stuff.
+//
+//  "synchronizer_flop.v" is a behaviorial description of a 1-bit flop.
+//    It should be manually instantiated in EACH AND EVERY MODULE which
+//      uses a flop to synchronize a signal from one clock domain to another.
+//    In real use, the user of this file will generate a simulation module
+//      which will behave like a normal flop when presented with 1, 0, X, or Z.
+//    This special-purpose module will NOT have setup and hold tests.  It will
+//      NOT convert a valid value into an X due to setup timing being violated.
+//    This module makes it possible to simulate gate-level netlists with
+//      multiple clock domains without fear of making inappropriate X's.
+//
+
