@@ -63,11 +63,20 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: encode_8b_10b.v,v 1.4 2001-10-25 11:25:33 bbeaver Exp $
+// $Id: encode_8b_10b.v,v 1.5 2001-10-26 10:32:13 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.18  2001/10/26 10:39:43  Blue Beaver
+// no message
+//
+// Revision 1.17  2001/10/26 10:38:05  Blue Beaver
+// no message
+//
+// Revision 1.16  2001/10/25 11:43:03  Blue Beaver
+// no message
+//
 // Revision 1.14  2001/10/25 11:33:51  Blue Beaver
 // no message
 //
@@ -735,7 +744,6 @@ module decode_10b_8b (
   reg    [7:0] eight_bit_data_or_control_out;
   reg     output_is_control;
   reg     invalid_encoded_data;
-  reg    [19:0] two_bytes_of_codes_back_to_back;
 
   always @(posedge clk)
   begin
@@ -756,12 +764,16 @@ module decode_10b_8b (
   end
 endmodule
 
-`define TEST_8B_10B
+// `define TEST_8B_10B
 `ifdef TEST_8B_10B
+// This simulates in between 6 and 7 minutes on a 400 MHz Ultra using verilog XL.
+// This does not complete before filling up the disk on a 300 MHz K6 using Verilogger PRO.
 module test_8b_10b;
   reg    [8:0] test_data;
   reg    [8:0] test_data_second;
   reg    [8:0] limit;
+  reg    [7:0] control_byte;
+  reg    [7:0] control_byte_second;
   reg     test_control;
 
   reg    [7:0] eight_bit_data_or_control_in;
@@ -776,7 +788,6 @@ module test_8b_10b;
 
   reg     clk, reset;
 
-  reg    [19:0] two_bytes_of_codes_back_to_back;
   reg     found_singular_comma;
 
 task set_to_negative_disparity;
@@ -858,13 +869,15 @@ function look_for_singular_comma;
   end
 endfunction
 
-task check_pair;
+task check_pair;  // Data then Data or Control then Data
   input disparity;
   input  [7:0] test_data;
   input  [7:0] test_data_second;
   input   do_control;
   input   want_singular_comma;
   reg    [9:0] latched_code;
+  reg    [19:0] two_bytes_of_codes_back_to_back;
+
   begin
     if (disparity == 1'b1)
       set_to_positive_disparity;
@@ -927,7 +940,11 @@ task check_pair;
            | look_for_singular_comma (two_bytes_of_codes_back_to_back[12:6])
            | look_for_singular_comma (two_bytes_of_codes_back_to_back[13:7])
            | look_for_singular_comma (two_bytes_of_codes_back_to_back[14:8])
-           | look_for_singular_comma (two_bytes_of_codes_back_to_back[15:9]) )
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[15:9])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[16:10])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[17:11])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[18:12])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[19:13]) )
       begin
         $display ("!!! unexpected singular comma, result %d %d %b_%b %b_%b %b %b %b %b",
                    test_data[7:0], test_data_second[7:0],
@@ -939,7 +956,105 @@ task check_pair;
     end
     else  // want a singular comma
     begin
-      if (  !look_for_singular_comma (two_bytes_of_codes_back_to_back[6:0])
+      if (!look_for_singular_comma (two_bytes_of_codes_back_to_back[6:0]))
+      begin
+        $display ("!!! missing singular comma, result %d %d %b_%b %b_%b %b %b %b %b",
+                   test_data[7:0], test_data_second[7:0],
+                   two_bytes_of_codes_back_to_back[9:6], two_bytes_of_codes_back_to_back[5:0],
+                   two_bytes_of_codes_back_to_back[19:16], two_bytes_of_codes_back_to_back[15:10],
+                   eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
+                   output_is_control, invalid_encoded_data);
+      end
+      if (   look_for_singular_comma (two_bytes_of_codes_back_to_back[7:1])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[8:2])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[9:3])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[10:4])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[11:5])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[12:6])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[13:7])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[14:8])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[15:9])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[16:10])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[17:11])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[18:12])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[19:13]) )
+      begin
+        $display ("!!! unexpected singular comma, result %d %d %b_%b %b_%b %b %b %b %b",
+                   test_data[7:0], test_data_second[7:0],
+                   two_bytes_of_codes_back_to_back[9:6], two_bytes_of_codes_back_to_back[5:0],
+                   two_bytes_of_codes_back_to_back[19:16], two_bytes_of_codes_back_to_back[15:10],
+                   eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
+                   output_is_control, invalid_encoded_data);
+      end
+    end
+  end
+endtask
+
+task check_pair_2;  // Data followed by Control or Control followed by Control
+  input disparity;
+  input  [7:0] test_data;
+  input  [7:0] test_data_second;
+  input   first_control;
+  input   want_first_singular_comma;
+  input   second_control;
+  input   want_second_singular_comma;
+  reg    [9:0] latched_code;
+  reg    [19:0] two_bytes_of_codes_back_to_back;
+
+  begin
+    if (disparity == 1'b1)
+      set_to_positive_disparity;
+    else
+      set_to_negative_disparity;
+
+    input_is_control = first_control;
+    eight_bit_data_or_control_in[7:0] = test_data[7:0]; #1;  // inputs settle
+    clk = 1'b1; #1;  // encoded data available
+    clk = 1'b0; #1;
+
+    latched_code[9:0] = ten_bit_encoded_data_out[9:0];
+    two_bytes_of_codes_back_to_back[9:0] = ten_bit_encoded_data_out[9:0];
+
+    input_is_control = second_control;
+    eight_bit_data_or_control_in[7:0] = test_data_second[7:0]; #1;  // inputs settle
+    clk = 1'b1; #1;  // decoded data available
+    clk = 1'b0; #1;
+
+    if (   (eight_bit_data_or_control_out[7:0] !== test_data[7:0])
+         | (output_is_control !== first_control)
+         | (invalid_encoded_data !== 1'b0)
+       )
+    begin
+      $display ("!!! test data, result %d %d %b_%b %x %d %b %b",
+                 test_data[7:5], test_data[4:0],
+                 latched_code[9:6], latched_code[5:0],
+                 eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
+                 output_is_control, invalid_encoded_data);
+    end
+
+    latched_code[9:0] = ten_bit_encoded_data_out[9:0];
+    two_bytes_of_codes_back_to_back[19:10] = ten_bit_encoded_data_out[9:0];
+
+    input_is_control = 1'b0;
+    eight_bit_data_or_control_in[7:0] = 8'b010_00011; #1;
+    clk = 1'b1; #1;  // decoded data available
+    clk = 1'b0; #1;
+
+    if (   (eight_bit_data_or_control_out[7:0] !== test_data_second[7:0])
+         | (output_is_control !== second_control)
+         | (invalid_encoded_data !== 1'b0)
+       )
+    begin
+      $display ("!!! test data second, result %d %d %b_%b %x %d %b %b",
+                 test_data_second[7:5], test_data_second[4:0],
+                 latched_code[9:6], latched_code[5:0],
+                 eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
+                 output_is_control, invalid_encoded_data);
+    end
+
+    if (~want_first_singular_comma)
+    begin
+      if (   look_for_singular_comma (two_bytes_of_codes_back_to_back[6:0])
            | look_for_singular_comma (two_bytes_of_codes_back_to_back[7:1])
            | look_for_singular_comma (two_bytes_of_codes_back_to_back[8:2])
            | look_for_singular_comma (two_bytes_of_codes_back_to_back[9:3])
@@ -950,7 +1065,74 @@ task check_pair;
            | look_for_singular_comma (two_bytes_of_codes_back_to_back[14:8])
            | look_for_singular_comma (two_bytes_of_codes_back_to_back[15:9]) )
       begin
+        $display ("!!! unexpected singular comma, result %d %d %b_%b %b_%b %b %b %b %b",
+                   test_data[7:0], test_data_second[7:0],
+                   two_bytes_of_codes_back_to_back[9:6], two_bytes_of_codes_back_to_back[5:0],
+                   two_bytes_of_codes_back_to_back[19:16], two_bytes_of_codes_back_to_back[15:10],
+                   eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
+                   output_is_control, invalid_encoded_data);
+      end
+    end
+    else  // want a singular comma in the first byte
+    begin
+      if (!look_for_singular_comma (two_bytes_of_codes_back_to_back[6:0]))
+      begin
         $display ("!!! missing singular comma, result %d %d %b_%b %b_%b %b %b %b %b",
+                   test_data[7:0], test_data_second[7:0],
+                   two_bytes_of_codes_back_to_back[9:6], two_bytes_of_codes_back_to_back[5:0],
+                   two_bytes_of_codes_back_to_back[19:16], two_bytes_of_codes_back_to_back[15:10],
+                   eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
+                   output_is_control, invalid_encoded_data);
+      end
+      if (   look_for_singular_comma (two_bytes_of_codes_back_to_back[7:1])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[8:2])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[9:3])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[10:4])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[11:5])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[12:6])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[13:7])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[14:8])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[15:9]) )
+      begin
+        $display ("!!! unexpected singular comma, result %d %d %b_%b %b_%b %b %b %b %b",
+                   test_data[7:0], test_data_second[7:0],
+                   two_bytes_of_codes_back_to_back[9:6], two_bytes_of_codes_back_to_back[5:0],
+                   two_bytes_of_codes_back_to_back[19:16], two_bytes_of_codes_back_to_back[15:10],
+                   eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
+                   output_is_control, invalid_encoded_data);
+      end
+    end
+    if (~want_second_singular_comma)
+    begin
+      if (   look_for_singular_comma (two_bytes_of_codes_back_to_back[16:10])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[17:11])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[18:12])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[19:13]) )
+      begin
+        $display ("!!! unexpected singular comma, result %d %d %b_%b %b_%b %b %b %b %b",
+                   test_data[7:0], test_data_second[7:0],
+                   two_bytes_of_codes_back_to_back[9:6], two_bytes_of_codes_back_to_back[5:0],
+                   two_bytes_of_codes_back_to_back[19:16], two_bytes_of_codes_back_to_back[15:10],
+                   eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
+                   output_is_control, invalid_encoded_data);
+      end
+    end
+    else  // want a singular comma in the second byte
+    begin
+      if (!look_for_singular_comma (two_bytes_of_codes_back_to_back[16:10]))
+      begin
+        $display ("!!! missing singular comma 2, result %d %d %b_%b %b_%b %b %b %b %b",
+                   test_data[7:0], test_data_second[7:0],
+                   two_bytes_of_codes_back_to_back[9:6], two_bytes_of_codes_back_to_back[5:0],
+                   two_bytes_of_codes_back_to_back[19:16], two_bytes_of_codes_back_to_back[15:10],
+                   eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
+                   output_is_control, invalid_encoded_data);
+      end
+      if (   look_for_singular_comma (two_bytes_of_codes_back_to_back[17:11])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[18:12])
+           | look_for_singular_comma (two_bytes_of_codes_back_to_back[19:13]) )
+      begin
+        $display ("!!! unexpected singular comma 2, result %d %d %b_%b %b_%b %b %b %b %b",
                    test_data[7:0], test_data_second[7:0],
                    two_bytes_of_codes_back_to_back[9:6], two_bytes_of_codes_back_to_back[5:0],
                    two_bytes_of_codes_back_to_back[19:16], two_bytes_of_codes_back_to_back[15:10],
@@ -960,6 +1142,26 @@ task check_pair;
     end
   end
 endtask
+
+function [7:0] pick_control_byte;
+  input  [3:0] index;
+  begin
+    case (index[3:0])
+      0:       pick_control_byte[7:0] = `K_23_7;
+      1:       pick_control_byte[7:0] = `K_27_7;
+      2:       pick_control_byte[7:0] = `K_28_0;
+      3:       pick_control_byte[7:0] = `K_28_1;
+      4:       pick_control_byte[7:0] = `K_28_2;
+      5:       pick_control_byte[7:0] = `K_28_3;
+      6:       pick_control_byte[7:0] = `K_28_4;
+      7:       pick_control_byte[7:0] = `K_28_5;
+      8:       pick_control_byte[7:0] = `K_28_6;
+      9:       pick_control_byte[7:0] = `K_28_7;
+      10:      pick_control_byte[7:0] = `K_29_7;
+      default: pick_control_byte[7:0] = `K_30_7;
+    endcase
+  end
+endfunction
 
   initial
   begin
@@ -1064,25 +1266,53 @@ endtask
     end
 
     $display ("trying all controls then bytes with negative disparity");
+    $display ("This finds 24 unexpected extra singular commas when sending K_28_7");
     for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h100;
                       test_data[8:0] = test_data[8:0] + 9'h001)
     begin
-      check_pair (0, `K_23_7, test_data[7:0], 1'b1, 1'b0);
-      check_pair (0, `K_27_7, test_data[7:0], 1'b1, 1'b0);
-      check_pair (0, `K_28_0, test_data[7:0], 1'b1, 1'b0);
-      check_pair (0, `K_28_1, test_data[7:0], 1'b1, 1'b1);
-      check_pair (0, `K_28_2, test_data[7:0], 1'b1, 1'b0);
-      check_pair (0, `K_28_3, test_data[7:0], 1'b1, 1'b0);
-      check_pair (0, `K_28_4, test_data[7:0], 1'b1, 1'b0);
-      check_pair (0, `K_28_5, test_data[7:0], 1'b1, 1'b1);
-      check_pair (0, `K_28_6, test_data[7:0], 1'b1, 1'b0);
-      check_pair (0, `K_28_7, test_data[7:0], 1'b1, 1'b1);
-      check_pair (0, `K_29_7, test_data[7:0], 1'b1, 1'b0);
-      check_pair (0, `K_30_7, test_data[7:0], 1'b1, 1'b0);
+      for (test_data_second[3:0] = 4'h0; test_data_second[3:0] < 4'hC;
+           test_data_second[3:0] = test_data_second[3:0] + 4'h1)
+      begin
+        check_pair (0, pick_control_byte(test_data_second[3:0]), test_data[7:0], 1'b1,
+                         (test_data_second[3:0] == 4'h3)
+                       | (test_data_second[3:0] == 4'h7)
+                       | (test_data_second[3:0] == 4'h9) );
+      end
     end
 
     $display ("trying all bytes then controls with negative disparity");
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h100;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
+    begin
+      for (test_data_second[3:0] = 4'h0; test_data_second[3:0] < 4'hC;
+           test_data_second[3:0] = test_data_second[3:0] + 4'h1)
+      begin
+        check_pair_2 (0, test_data[7:0], pick_control_byte(test_data_second[3:0]),
+                       1'b0, 1'b0,
+                       1'b1,   (test_data_second[3:0] == 4'h3)
+                             | (test_data_second[3:0] == 4'h7)
+                             | (test_data_second[3:0] == 4'h9) );
+      end
+    end
+
     $display ("trying all controls then controls with negative disparity");
+    $display ("This finds 8 unexpected extra singular commas when sending K_28_7");
+    for (test_data[3:0] = 9'h000; test_data[3:0] < 4'hC;
+                      test_data[3:0] = test_data[3:0] + 4'h1)
+    begin
+      for (test_data_second[3:0] = 4'h0; test_data_second[3:0] < 4'hC;
+           test_data_second[3:0] = test_data_second[3:0] + 4'h1)
+      begin
+        check_pair_2 (0, pick_control_byte(test_data[3:0]),
+                         pick_control_byte(test_data_second[3:0]),
+                       1'b1,   (test_data[3:0] == 4'h3)
+                             | (test_data[3:0] == 4'h7)
+                             | (test_data[3:0] == 4'h9),
+                       1'b1,   (test_data_second[3:0] == 4'h3)
+                             | (test_data_second[3:0] == 4'h7)
+                             | (test_data_second[3:0] == 4'h9) );
+      end
+    end
 
     $display ("trying all byte pairs starting with positive disparity");
     for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h100;
@@ -1096,27 +1326,53 @@ endtask
     end
 
     $display ("trying all controls then bytes with positive disparity");
+    $display ("This finds 24 unexpected extra singular commas when sending K_28_7");
     for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h100;
                       test_data[8:0] = test_data[8:0] + 9'h001)
     begin
-      check_pair (1, `K_23_7, test_data[7:0], 1'b1, 1'b0);
-      check_pair (1, `K_27_7, test_data[7:0], 1'b1, 1'b0);
-      check_pair (1, `K_28_0, test_data[7:0], 1'b1, 1'b0);
-      check_pair (1, `K_28_1, test_data[7:0], 1'b1, 1'b1);
-      check_pair (1, `K_28_2, test_data[7:0], 1'b1, 1'b0);
-      check_pair (1, `K_28_3, test_data[7:0], 1'b1, 1'b0);
-      check_pair (1, `K_28_4, test_data[7:0], 1'b1, 1'b0);
-      check_pair (1, `K_28_5, test_data[7:0], 1'b1, 1'b1);
-      check_pair (1, `K_28_6, test_data[7:0], 1'b1, 1'b0);
-      check_pair (1, `K_28_7, test_data[7:0], 1'b1, 1'b1);
-      check_pair (1, `K_29_7, test_data[7:0], 1'b1, 1'b0);
-      check_pair (1, `K_30_7, test_data[7:0], 1'b1, 1'b0);
+      for (test_data_second[3:0] = 4'h0; test_data_second[3:0] < 4'hC;
+           test_data_second[3:0] = test_data_second[3:0] + 4'h1)
+      begin
+        check_pair (1, pick_control_byte(test_data_second[3:0]), test_data[7:0], 1'b1,
+                         (test_data_second[3:0] == 4'h3)
+                       | (test_data_second[3:0] == 4'h7)
+                       | (test_data_second[3:0] == 4'h9) );
+      end
     end
 
     $display ("trying all bytes then controls with positive disparity");
-// NOTE: TODO
-    $display ("trying all controls then controls with positive disparity");
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h100;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
+    begin
+      for (test_data_second[3:0] = 4'h0; test_data_second[3:0] < 4'hC;
+           test_data_second[3:0] = test_data_second[3:0] + 4'h1)
+      begin
+        check_pair_2 (1, test_data[7:0], pick_control_byte(test_data_second[3:0]),
+                       1'b0, 1'b0,
+                       1'b1,   (test_data_second[3:0] == 4'h3)
+                             | (test_data_second[3:0] == 4'h7)
+                             | (test_data_second[3:0] == 4'h9) );
+      end
+    end
 
+    $display ("trying all controls then controls with positive disparity");
+    $display ("This finds 8 unexpected extra singular commas when sending K_28_7");
+    for (test_data[3:0] = 9'h000; test_data[3:0] < 4'hC;
+                      test_data[3:0] = test_data[3:0] + 4'h1)
+    begin
+      for (test_data_second[3:0] = 4'h0; test_data_second[3:0] < 4'hC;
+           test_data_second[3:0] = test_data_second[3:0] + 4'h1)
+      begin
+        check_pair_2 (1, pick_control_byte(test_data[3:0]),
+                         pick_control_byte(test_data_second[3:0]),
+                       1'b1,   (test_data[3:0] == 4'h3)
+                             | (test_data[3:0] == 4'h7)
+                             | (test_data[3:0] == 4'h9),
+                       1'b1,   (test_data_second[3:0] == 4'h3)
+                             | (test_data_second[3:0] == 4'h7)
+                             | (test_data_second[3:0] == 4'h9) );
+      end
+    end
   end
 
 encode_8b_10b encode_8b_10b (
