@@ -1,0 +1,643 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html lang="en">
+
+<head>
+<link Rel="StyleSheet" HREF="/Style/lpm.css" TYPE="text/css">
+<title>EDIF Example</title>
+
+
+<meta name="Microsoft Border" content="tb, default">
+</head>
+
+<body><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<h1 align="center">EDIF Example</h1>
+</td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><!--msnavigation--><td valign="top">
+<font SIZE="5"><b>
+
+<h2>Schematic Description</h2>
+
+<p><img SRC="../images/210edf-e.gif" WIDTH="619" HEIGHT="301"><br>
+</p>
+
+<h2><a NAME="_Toc365780529">EDIF 2 0 0 D</a>escription <a NAME="_Toc344195510"><!--5.3 LPM DESCRIPTION--> </a></h2>
+<font size="3">
+
+<pre>
+  (edif fibex  (edifVersion 2 0 0)
+      (edifLevel 0)
+      (keywordMap (keywordLevel 0))
+      (status
+          (written
+          (timeStamp 1995 11 22 23 2 53)
+          (program &quot;EDIFWRITER&quot; (version &quot;v8.4_2.1&quot;))
+          )
+      )
+      (library FIBEX
+          (edifLevel 0)
+          (technology
+              (numberDefinition
+                   (scale 1 (e 1 -6) (unit distance)))
+          )
+          (cell dff_4 (cellType generic)
+              (view view1 (viewType netlist)
+                  (interface
+                      (port aset (direction INPUT))
+                      (port clock (direction INPUT))
+                      (port data0 (direction INPUT))
+                      (port data1 (direction INPUT))
+                      (port data2 (direction INPUT))
+                      (port data3 (direction INPUT))
+                      (port q0 (direction OUTPUT))
+                      (port q1 (direction OUTPUT))
+                      (port q2 (direction OUTPUT))
+                      (port q3 (direction OUTPUT))
+                      (property LPM_Avalue (integer 1))
+                      (property LPM_TYPE (string &quot;LPM_FF&quot;))
+                      (property LPM_FFTYPE (string &quot;DFF&quot;))
+                      (property LPM_Width (integer 4))
+                  )
+              )
+          )
+          (cell addsub_4 (cellType generic)
+              (view view1 (viewType netlist)
+                  (interface
+                      (port dataA0 (direction INPUT))
+                      (port dataA1 (direction INPUT))
+                      (port dataA2 (direction INPUT))
+                      (port dataA3 (direction INPUT))
+                      (port dataB0 (direction INPUT))
+                      (port dataB1 (direction INPUT))
+                      (port dataB2 (direction INPUT))
+                      (port dataB3 (direction INPUT))
+                      (port result0 (direction OUTPUT))
+                      (port result1 (direction OUTPUT))
+                      (port result2 (direction OUTPUT))
+                      (port result3 (direction OUTPUT))
+                      (property LPM_TYPE (string &quot;LPM_ADD_SUB&quot;))
+                      (property LPM_Width (integer 4))
+                  )
+              )
+          )
+          (cell FIBEX (cellType generic)
+              (view schematic (viewType netlist)
+                  (interface
+                      (port CLEAR (direction INPUT))
+                      (port CLOCK (direction INPUT))
+                      (port (rename RESULT_91_0_93_ &quot;RESULT[0]&quot;) (direction INOUT))
+                      (port (rename RESULT_91_1_93_ &quot;RESULT[1]&quot;) (direction INOUT))
+                      (port (rename RESULT_91_2_93_ &quot;RESULT[2]&quot;) (direction INOUT))
+                      (port (rename RESULT_91_3_93_ &quot;RESULT[3]&quot;) (direction INOUT))
+                  )
+                  (contents
+                      (instance (rename I_36_1 &quot;I$1&quot;)
+                          (viewRef view1 (cellRef dff_4))
+                      )
+                      (instance (rename I_36_3 &quot;I$3&quot;)
+                          (viewRef view1 (cellRef addsub_4))
+                      )
+                      (instance (rename I_36_5 &quot;I$5&quot;)
+                          (viewRef view1 (cellRef dff_4))
+                      )
+                      (net CLEAR
+                          (joined
+                              (portRef CLEAR)
+                              (portRef aset (instanceRef I_36_1))
+                              (portRef aset (instanceRef I_36_5))
+                          )
+                      )
+                      (net CLOCK
+                          (joined
+                              (portRef CLOCK)
+                              (portRef clock (instanceRef I_36_1))
+                              (portRef clock (instanceRef I_36_5))
+                          )
+                      )
+                      (net (rename LAST_91_0_93_ &quot;LAST[0]&quot;)
+                          (joined
+                              (portRef data0 (instanceRef I_36_5))
+                              (portRef dataB0 (instanceRef I_36_3))
+                              (portRef q0 (instanceRef I_36_1))
+                          )
+                      )
+                      (net (rename LAST_91_1_93_ &quot;LAST[1]&quot;)
+                          (joined
+                              (portRef data1 (instanceRef I_36_5))
+                              (portRef dataB1 (instanceRef I_36_3))
+                              (portRef q1 (instanceRef I_36_1))
+                          )
+                      )
+                      (net (rename LAST_91_2_93_ &quot;LAST[2]&quot;)
+                          (joined
+                              (portRef data2 (instanceRef I_36_5))
+                              (portRef dataB2 (instanceRef I_36_3))
+                              (portRef q2 (instanceRef I_36_1))
+                          )
+                      )
+                      (net (rename LAST_91_3_93_ &quot;LAST[3]&quot;)
+                          (joined
+                              (portRef data3 (instanceRef I_36_5))
+                              (portRef dataB3 (instanceRef I_36_3))
+                              (portRef q3 (instanceRef I_36_1))
+                          )
+                      )
+                      (net (rename PRESENT_91_0_93_ &quot;PRESENT[0]&quot;)
+                          (joined
+                              (portRef dataA0 (instanceRef I_36_3))
+                              (portRef q0 (instanceRef I_36_5))
+                          )
+                      )
+                      (net (rename PRESENT_91_1_93_ &quot;PRESENT[1]&quot;)
+                          (joined
+                              (portRef dataA1 (instanceRef I_36_3))
+                              (portRef q1 (instanceRef I_36_5))
+                          )
+                      )
+                      (net (rename PRESENT_91_2_93_ &quot;PRESENT[2]&quot;)
+                          (joined
+                              (portRef dataA2 (instanceRef I_36_3))
+                              (portRef q2 (instanceRef I_36_5))
+                          )
+                      )
+                      (net (rename PRESENT_91_3_93_ &quot;PRESENT[3]&quot;)
+                          (joined
+                              (portRef dataA3 (instanceRef I_36_3))
+                              (portRef q3 (instanceRef I_36_5))
+                          )
+                      )
+                      (net (rename RESULT_91_0_93_ &quot;RESULT[0]&quot;)
+                          (joined
+                              (portRef RESULT_91_0_93_)
+                              (portRef data0 (instanceRef I_36_1))
+                              (portRef result0 (instanceRef I_36_3))
+                          )
+                      )
+                      (net (rename RESULT_91_1_93_ &quot;RESULT[1]&quot;)
+                          (joined
+                              (portRef RESULT_91_1_93_)
+                              (portRef data1 (instanceRef I_36_1))
+                              (portRef result1 (instanceRef I_36_3))
+                          )
+                      )
+                      (net (rename RESULT_91_2_93_ &quot;RESULT[2]&quot;)
+                          (joined
+                              (portRef RESULT_91_2_93_)
+                              (portRef data2 (instanceRef I_36_1))
+                              (portRef result2 (instanceRef I_36_3))
+                          )
+                      )
+                      (net (rename RESULT_91_3_93_ &quot;RESULT[3]&quot;)
+                          (joined
+                              (portRef RESULT_91_3_93_)
+                              (portRef data3 (instanceRef I_36_1))
+                              (portRef result3 (instanceRef I_36_3))
+                          )
+                      )
+                  )
+              )
+          )
+      )
+      (design FIBEX
+              (cellRef FIBEX (libraryRef FIBEX))
+  )
+
+ </font>      </pre>
+
+<h2><a NAME="_Toc365780531">EDIF 3 0 0 Description</a> <!--.3 LPM DESCRIPTION--> </h2>
+<font size="3">
+
+<pre>
+(edif fibex
+    (edifVersion 3 0 0)
+    (edifHeader
+        (edifLevel 0)
+        (keywordMap
+                (k0KeywordLevel))
+        (fontDefinitions)
+        (physicalDefaults)
+        (status
+            (copyright (year 1995) &quot;Altera Corporation&quot;)
+            (comment &quot;LPM Version 3 0 0 Example&quot;)
+            (written
+                (dataOrigin &quot;Altera Corporation&quot;)
+                (program &quot;MAX+plus II 7.0&quot;)))
+        (nameInformation
+        (primaryName &quot;fibex&quot;))
+        (physicalScaling
+            (connectivityUnits
+                (setTime (unitRef ns)))))
+    (library fibex
+        (libraryHeader
+        (edifLevel 0)
+        (nameCaseSensitivity)
+        (technology
+            (physicalScaling
+                    (connectivityUnits
+                    (setTime (unitRef ns))))
+            (logicDefinitions
+                    (setVoltage (unitRef mv))
+                    (setCurrent (unitRef ua))
+                    (logicValue L)
+                    (logicValue H)
+                    (logicValue X)
+                    (logicValue Z))))
+        (cell dff4
+            (cellHeader
+                (nameInformation
+                     (primaryName &quot;dff4&quot;)))
+            (cluster C1
+                (interface (interfaceUnits)
+                    (port CLOCK (inputPort)
+                        (nameInformation
+                            (primaryName &quot;CLOCK&quot;)))
+                    (port ASET (inputPort)
+                        (nameInformation
+                            (primaryName &quot;ASET&quot;)))
+                    (port DATA0 (inputPort)
+                        (nameInformation
+                            (pimaryName &quot;DATA0&quot;
+                                (nameStructure
+                                    (complexName &quot;DATA&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 0)))))))
+                    (port DATA1 (inputPort)
+                        (nameInformation
+                            (primaryName &quot;DATA1&quot;
+                                (nameStructure
+                                    (complexName &quot;DATA&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 1)))))))
+                    (port DATA2 (inputPort)
+                        (nameInformation
+                            (primaryName &quot;DATA2&quot;
+                                (nameStructure
+                                    (complexName &quot;DATA&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 2)))))))
+                    (port DATA3 (inputPort)
+                        (nameInformation
+                            (primaryName &quot;DATA3&quot;
+                                (nameStructure
+                                    (complexName &quot;DATA&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 3)))))))
+                    (portBundle DATA
+                        (portList
+                            (portRef DATA3)
+                            (portRef DATA2)
+                            (portRef DATA1)
+                            (portRef DATA0))
+                        (nameInformation
+                            (primaryName &quot;DATA[3:0]&quot;
+                                (nameStructure
+                                    (complexName &quot;DATA&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure
+                                                (sequence 3 0))))))))
+                    (port Q0 (outputPort)
+                        (nameInformation
+                            (primaryName &quot;Q0&quot;
+                                            (nameStructure
+                                            (complexName &quot;Q&quot;
+                                                    (nameDimension
+                                                            (nameDimensionStructure 0)))))))
+                    (port Q1 (outputPort)
+                        (nameInformation
+                            (primaryName &quot;Q1&quot;
+                                (nameStructure
+                                    (complexName &quot;Q&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 1)))))))
+                    (port Q2 (outputPort)
+                        (nameInformation
+                            (primaryName &quot;Q2&quot;
+                                (nameStructure
+                                    (complexName &quot;Q&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 2)))))))
+                    (port Q3 (outputPort)
+                        (nameInformation
+                            (primaryName &quot;Q3&quot;
+                                (nameStructure
+                                    (complexName &quot;Q&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 3)))))))
+                    (portBundle Q
+                        (portList
+                            (portRef Q3)
+                            (portRef Q2)
+                            (portRef Q1)
+                            (portRef Q0))
+                        (nameInformation
+                            (primaryName &quot;Q[3:0]&quot;
+                                (nameStructure
+                                    (complexName &quot;Q&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure
+                                                (sequence 3 0)))))))))
+                    (clusterHeader
+                        (property LPM_TYPE (string &quot;LPM_FF&quot;))
+                        (property LPM_FFTYPE (string &quot;DFF&quot;))
+                        (property LPM_Width (integer 4))
+                        (property LPM_Avalue (integer 1)))))
+        (cell addsub_4
+            (cellHeader
+                (nameInformation
+                    (primaryName &quot;addsub_4&quot;)))
+            (cluster C1
+                (interface (interfaceUnits)
+                    (port DATAA0 (inputPort)
+                        (nameInformation
+                            (primaryName &quot;DATAA0&quot;
+                                (nameStructure
+                                    (complexName &quot;DATAA&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 0)))))))
+                    (port DATAA1 (inputPort)
+                        (nameInformation
+                            (primaryName &quot;DATAA1&quot;
+                                (nameStructure
+                                    (complexName &quot;DATAA&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 1)))))))
+                    (port DATAA2 (inputPort)
+                        (nameInformation
+                            (primaryName &quot;DATAA2&quot;
+                                (nameStructure
+                                    (complexName &quot;DATAA&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 2)))))))
+                    (port DATAA3 (inputPort)
+                        (nameInformation
+                            (primaryName &quot;DATAA3&quot;
+                                (nameStructure
+                                    (complexName &quot;DATAA&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 3)))))))
+                    (portBundle DATAA
+                        (portList
+                            (portRef DATAA3)
+                            (portRef DATAA2)
+                            (portRef DATAA1)
+                            (portRef DATAA0))
+                        (nameInformation
+                            (primaryName &quot;DATAA[3:0]&quot;
+                                (nameStructure
+                                    (complexName &quot;DATAA&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure
+                                                (sequence 3 0))))))))
+                                (port DATAB0 (inputPort)
+                                    (nameInformation
+                                        (primaryName &quot;DATAB0&quot;
+                                            (nameStructure
+                                                (complexName &quot;DATAB&quot;
+                                                    (nameDimension
+                                                        (nameDimensionStructure 0)))))))
+                                (port DATAB1 (inputPort)
+                                    (nameInformation
+                                        (primaryName &quot;DATAB1&quot;
+                                            (nameStructure
+                                                (complexName &quot;DATAB&quot;
+                                                    (nameDimension
+                                                        (nameDimensionStructure 1)))))))
+                                (port DATAB2 (inputPort)
+                                    (nameInformation
+                                        (primaryName &quot;DATAB2&quot;
+                                            (nameStructure
+                                                (complexName &quot;DATAB&quot;
+                                                    (nameDimension
+                                                        (nameDimensionStructure 2)))))))
+                                (port DATAB3 (inputPort)
+                                    (nameInformation
+                                        (primaryName &quot;DATAB3&quot;
+                                            (nameStructure
+                                                (complexName &quot;DATAB&quot;
+                                                    (nameDimension
+                                                        (nameDimensionStructure 3)))))))
+                                (portBundle DATAB
+                                    (portList
+                                        (portRef DATAB3)
+                                        (portRef DATAB2)
+                                        (portRef DATAB1)
+                                        (portRef DATAB0))
+                                    (nameInformation
+                                        (primaryName &quot;DATAB[3:0]&quot;
+                                             (nameStructure
+                                                 (complexName &quot;DATAB&quot;
+                                                     (nameDimension
+                                                         (nameDimensionStructure
+                                                             (sequence 3 0))))))))
+                                (port RESULT0 (outputPort)
+                                    (nameInformation
+                                        (primaryName &quot;RESULT0&quot;
+                                            (nameStructure
+                                                (complexName &quot;RESULT&quot;
+                                                    (nameDimension
+                                                        (nameDimensionStructure 0)))))))
+                                (port RESULT1 (outputPort)
+                                    (nameInformation
+                                        (primaryName &quot;RESULT1&quot;
+                                            (nameStructure
+                                                (complexName &quot;RESULT&quot;
+                                                    (nameDimension
+                                                        (nameDimensionStructure 1)))))))
+                                (port RESULT2 (outputPort)
+                                    (nameInformation
+                                        (primaryName &quot;RESULT2&quot;
+                                            (nameStructure
+                                                (complexName &quot;RESULT&quot;
+                                                    (nameDimension
+                                                        (nameDimensionStructure 2)))))))
+                                (port RESULT3 (outputPort)
+                                    (nameInformation
+                                        (primaryName &quot;RESULT3&quot;
+                                            (nameStructure
+                                                (complexName &quot;RESULT&quot;
+                                                    (nameDimension
+                                                        (nameDimensionStructure 3)))))))
+                                (portBundle RESULT
+                                    (portList
+                                        (portRef RESULT3)
+                                        (portRef RESULT2)
+                                        (portRef RESULT1)
+                                        (portRef RESULT0))
+                                    (nameInformation
+                                        (primaryName &quot;RESULT[3:0]&quot;
+                                            (nameStructure
+                                                (complexName &quot;RESULT&quot;
+                                                    (nameDimension
+                                                        (nameDimensionStructure
+                                                            (sequence 3 0)))))))))
+                                (clusterHeader
+                                    (property LPM_TYPE (string &quot;LPM_ADD_SUB&quot;))
+                                    (property LPM_Width (integer 4)))))
+        (cell fibex
+            (cellHeader
+                (nameInformation
+                     (primaryName &quot;fibex&quot;)))
+            (cluster C1
+                (interface (interfaceUnits)
+                    (port CLOCK (inputPort)
+                        (nameInformation
+                            (primaryName &quot;CLOCK&quot;)))
+                    (port CLEAR (inputPort)
+                        (nameInformation
+                            (primaryName &quot;CLEAR&quot;)))
+                    (port RESULT0 (bidirectionalPort)
+                        (nameInformation
+                            (primaryName &quot;RESULT0&quot;
+                                (nameStructure
+                                    (complexName &quot;RESULT&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 0)))))))
+                    (port RESULT1 (bidirectionalPort)
+                        (nameInformation
+                            (primaryName &quot;RESULT1&quot;
+                                (nameStructure
+                                    (complexName &quot;RESULT&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 1)))))))
+                    (port RESULT2 (bidirectionalPort)
+                        (nameInformation
+                            (primaryName &quot;RESULT2&quot;
+                                (nameStructure
+                                    (complexName &quot;RESULT&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 2)))))))
+                    (port RESULT3 (bidirectionalPort)
+                        (nameInformation
+                            (primaryName &quot;RESULT3&quot;
+                                (nameStructure
+                                    (complexName &quot;RESULT&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure 3)))))))
+                    (portBundle RESULT
+                        (portList
+                            (portRef RESULT3)
+                            (portRef RESULT2)
+                            (portRef RESULT1)
+                            (portRef RESULT0))
+                        (nameInformation
+                            (primaryName &quot;RESULT[3:0]&quot;
+                                (nameStructure
+                                    (complexName &quot;RESULT&quot;
+                                        (nameDimension
+                                            (nameDimensionStructure
+                                                (sequence 3 0)))))))))
+                    (clusterHeader)
+                        (connectivityView VIEW1
+                            (connectivityViewHeader (connectivityUnits))
+                            (logicalConnectivity
+                            (instance I1
+                                (clusterRef C1 (cellRef dff4))
+                                (nameInformation
+                                    (primaryName &quot;I1&quot;)))
+                            (instance I2
+                                (clusterRef C1 (cellRef dff4))
+                                (nameInformation
+                                    (primaryName &quot;I2&quot;)))
+                            (instance I3
+                                (clusterRef C1 (cellRef addsub_4))
+                                (nameInformation
+                                    (primaryName &quot;I3&quot;)))
+                            (signal CLOCK
+                                (signalJoined
+                                    (portInstanceRef CLOCK (instanceRef I1))
+                                    (portInstanceRef CLOCK (instanceRef I2))
+                                    (portRef CLOCK)))
+                            (signal CLEAR
+                                (signalJoined
+                                    (portInstanceRef ASET (instanceRef I1))
+                                    (portInstanceRef ASET (instanceRef I2))
+                                    (portRef CLEAR)))
+                            (signal LAST0
+                                (signalJoined
+                                    (portInstanceRef Q0 (instanceRef I1))
+                                    (portInstanceRef DATA0 (instanceRef I2))
+                                    (portInstanceRef DATAB0 (instanceRef I3))))
+                            (signal LAST1
+                                (signalJoined
+                                    (portInstanceRef Q1 (instanceRef I1))
+                                    (portInstanceRef DATA1 (instanceRef I2))
+                                    (portInstanceRef DATAB1 (instanceRef I3))))
+                            (signal LAST2
+                                (signalJoined
+                                    (portInstanceRef Q2 (instanceRef I1))
+                                    (portInstanceRef DATA2 (instanceRef I2))
+                                    (portInstanceRef DATAB2 (instanceRef I3))))
+                            (signal LAST3
+                                (signalJoined
+                                    (portInstanceRef Q3 (instanceRef I1))
+                                    (portInstanceRef DATA3 (instanceRef I2))
+                                    (portInstanceRef DATAB3 (instanceRef I3))))
+                            (signalGroup LAST
+                                (signalList
+                                    (signalRef LAST0)
+                                    (signalRef LAST1)
+                                    (signalRef LAST2)
+                                    (signalRef LAST3)))
+                            (signal PRESENT0
+                                (signalJoined
+                                    (portInstanceRef Q0 (instanceRef I2))
+                                    (portInstanceRef DATAA0 (instanceRef I3))))
+                           (signal PRESENT1
+                                (signalJoined
+                                    (portInstanceRef Q1 (instanceRef I2))
+                                    (portInstanceRef DATAA1 (instanceRef I3))))
+                           (signal PRESENT2
+                                (signalJoined
+                                    (portInstanceRef Q2 (instanceRef I2))
+                                    (portInstanceRef DATAA2 (instanceRef I3))))
+                            (signal PRESENT3
+                                (signalJoined
+                                    (portInstanceRef Q3 (instanceRef I2))
+                                    (portInstanceRef DATAA3 (instanceRef I3))))
+                            (signalGroup PRESENT
+                                (signalList
+                                    (signalRef PRESENT0)
+                                    (signalRef PRESENT1)
+                                    (signalRef PRESENT2)
+                                    (signalRef PRESENT3)))
+                            (signal RESULT0
+                                (signalJoined
+                                    (portInstanceRef DATA0 (instanceRef I1))
+                                    (portInstanceRef RESULT0 (instanceRef I3))
+                                    (portRef RESULT0)))
+                            (signal RESULT1
+                                (signalJoined
+                                    (portInstanceRef DATA1 (instanceRef I1))
+                                    (portInstanceRef RESULT1 (instanceRef I3))
+                                    (portRef RESULT1)))
+                            (signal RESULT2
+                                (signalJoined
+                                    (portInstanceRef DATA2 (instanceRef I1))
+                                    (portInstanceRef RESULT2 (instanceRef I3))
+                                    (portRef RESULT2)))
+                            (signal RESULT3
+                                (signalJoined
+                                    (portInstanceRef DATA3 (instanceRef I1))
+                                    (portInstanceRef RESULT3 (instanceRef I3))
+                                    (portRef RESULT3)))
+                            (signalGroup RESULT
+                                (signalList
+                                    (signalRef RESULT0)
+                                    (signalRef RESULT1)
+                                    (signalRef RESULT2)
+                                    (signalRef RESULT3))))
+                         (connectivitystructure))))      )
+    (design fibex
+        (cellRef fibex
+            (libraryRef fibex))
+        (designHeader
+            (designUnits))))
+      </pre>
+
+<p>&nbsp;</font></b></font> 
+<!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<hr align="center">
+
+<p>Copyright © 1998-2000 University of Manchester</p>
+</td></tr><!--msnavigation--></table></body>
+</html>

@@ -1,0 +1,646 @@
+<html>
+
+<head>
+<title>LPM VHDL Package File</title>
+<meta NAME="GENERATOR" CONTENT="Microsoft FrontPage 3.0">
+<link Rel="StyleSheet" HREF="/Style/lpm.css" TYPE="text/css">
+
+<meta name="Microsoft Border" content="tb, default">
+</head>
+
+<body><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<h1 align="center">LPM VHDL Package File</h1>
+</td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><!--msnavigation--><td valign="top">
+
+<pre>---------------------------------------------------------------
+
+------------------------------------------------------------------------
+-- LPM 220 Component Declaration Package  (Support string type generic)
+------------------------------------------------------------------------
+-- Version 1.8 (lpm 220) Date 10/21/99
+--
+-- Fixed str_to_int() to correctly convert string to integer.
+------------------------------------------------------------------------
+-- Version 1.7 (lpm 220) Date 07/13/99
+--
+-- Changed OutEnab and WE in LPM_RAM_IO to default to 'Z'.
+------------------------------------------------------------------------
+-- Version 1.6 (lpm 220) Date 06/14/99
+--
+-- Added LPM_HINT and LPM_TYPE to all, if not existed.
+-- Changed all clock signals default value to '0'.
+-- Changed default values of parameters to comply with the spec.
+--     
+-- LPM_BUSTRI:
+--     Renamed TRDATA to TRIDATA.
+-- LPM_MULT:
+--     Changed LPM_WIDTHS type from positive to natural, default to 0.
+-- LPM_DIVIDE:
+--     Discarded LPM_WIDTHD and LPM_WIDTHR.
+-- LPM_COUNTER:
+--     Discarded EQ.
+--     Added CIN and COUT.
+--     Changed LPM_MODULUS type from integer to natural.
+-- LPM_FF:
+--     Added LPM_PVALUE, default to &quot;UNUSED&quot;.
+--     Changed LPM_FFTYPE default value from &quot;FFTYPE_DFF&quot; to &quot;DFF&quot;.
+-- LPM_SHIFTREG:
+--     Added LPM_PVALUE, default to &quot;UNUSED&quot;.
+-- LPM_RAM_DQ:
+--     Changed LPM_NUMWORDS type from integer to natrual.
+--     Changed WE to have no default value.
+-- LPM_RAM_DP:
+--     Changed LPM_NUMWORDS type from integer to natrual.
+--     Changed RDCLKEN default value from '0' to '1'.
+-- LPM_RAM_IO:
+--     Changed LPM_NUMWORDS type from integer to natrual.
+-- LPM_ROM:
+--     Changed LPM_NUMWORDS type from integer to natrual.
+-- LPM_FIFO:
+--     Added LPM_WIDTHU default value '1'.
+--     Added ACLR and SCLR default value '0'.
+-- LPM_FSM:
+--     Added LPM_PVALUE, default to &quot;UNUSED&quot;.
+--     Added TESTENAB and TESTIN, default to '0'.
+--     Added TESTOUT.
+------------------------------------------------------------------------
+-- Version 1.5 (lpm 220) Date 05/10/99
+--
+-- Added 0 default value to LPM_NUMWORD parameter in LPM_RAM_DQ,
+-- LPM_RAM_IO, and LPM_ROM. Also added 0 default value to LPM_MODULUS.
+------------------------------------------------------------------------
+-- Version 1.4 (lpm 220) Date 02/05/99
+--
+-- Removed the constant declarations for string type parameters.
+-- Changed LPM_NUMWORDS type from string to positive.
+-- Added LPM_DIVIDE, LPM_RAM_DP, LPM_FIFO, and LPM_SCFIFO functions.
+------------------------------------------------------------------------
+-- Version 1.3   Date 07/30/97
+------------------------------------------------------------------------
+-- Excluded:
+--
+-- 1. LPM_POLARITY.
+-- 2. SCAN pins are eliminated from storage functions.
+------------------------------------------------------------------------
+-- Assumptions:
+--
+--    LPM_SVALUE, LPM_AVALUE, LPM_MODULUS, and LPM_NUMWORDS, LPM_HINT,
+--    LPM_STRENGTH, LPM_DIRECTION, and LPM_PVALUE  default value is 
+--    string &quot;UNUSED&quot;.
+------------------------------------------------------------------------
+
+library IEEE;
+use IEEE.std_logic_1164.all;
+
+package LPM_COMPONENTS is
+
+constant L_CONSTANT : string := &quot;LPM_CONSTANT&quot;;
+constant L_INV      : string := &quot;LPM_INV&quot;;
+constant L_AND      : string := &quot;LPM_AND&quot;;
+constant L_OR       : string := &quot;LPM_OR&quot;;
+constant L_XOR      : string := &quot;LPM_XOR&quot;;
+constant L_BUSTRI   : string := &quot;LPM_BUSTRI&quot;;
+constant L_MUX      : string := &quot;LPM_MUX&quot;;
+constant L_DECODE   : string := &quot;LPM_DECODE&quot;;
+constant L_CLSHIFT  : string := &quot;LPM_CLSHIFT&quot;;
+constant L_ADD_SUB  : string := &quot;LPM_ADD_SUB&quot;;
+constant L_COMPARE  : string := &quot;LPM_COMPARE&quot;;
+constant L_MULT     : string := &quot;LPM_MULT&quot;;
+constant L_DIVIDE   : string := &quot;LPM_DIVIDE&quot;;
+constant L_ABS      : string := &quot;LPM_ABS&quot;;
+constant L_COUNTER  : string := &quot;LPM_COUNTER&quot;;
+constant L_LATCH    : string := &quot;LPM_LATCH&quot;;
+constant L_FF       : string := &quot;LPM_FF&quot;;
+constant L_SHIFTREG : string := &quot;LPM_SHIFTREG&quot;;
+constant L_RAM_DQ   : string := &quot;LPM_RAM_DQ&quot;;
+constant L_RAM_DP   : string := &quot;LPM_RAM_DP&quot;;
+constant L_RAM_IO   : string := &quot;LPM_RAM_IO&quot;;
+constant L_ROM      : string := &quot;LPM_ROM&quot;;
+constant L_FIFO     : string := &quot;LPM_FIFO&quot;;
+constant L_FIFO_DC  : string := &quot;LPM_FIFO_DC&quot;;
+constant L_TTABLE   : string := &quot;LPM_TTABLE&quot;;
+constant L_FSM      : string := &quot;LPM_FSM&quot;;
+constant L_INPAD    : string := &quot;LPM_INPAD&quot;;
+constant L_OUTPAD   : string := &quot;LPM_OUTPAD&quot;;
+constant L_BIPAD    : string := &quot;LPM_BIPAD&quot;;
+type STD_LOGIC_2D is array (NATURAL RANGE <>, NATURAL RANGE <>) of STD_LOGIC;
+function str_to_int(S : string) return integer;
+
+
+------------------------------------------------------------------------
+-- GATES ---------------------------------------------------------------
+------------------------------------------------------------------------
+
+component LPM_CONSTANT
+		generic (LPM_WIDTH : positive;
+				 LPM_CVALUE : natural;
+				 LPM_STRENGTH : string := &quot;UNUSED&quot;;
+				 LPM_TYPE : string := L_CONSTANT;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_INV
+		generic (LPM_WIDTH : positive;
+				 LPM_TYPE : string := L_INV;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_AND
+		generic (LPM_WIDTH : positive;
+				 LPM_SIZE : positive;
+				 LPM_TYPE : string := L_AND;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_2D(LPM_SIZE-1 downto 0, LPM_WIDTH-1 downto 0); 
+			  RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0)); 
+end component; 
+ 
+component LPM_OR 
+		generic (LPM_WIDTH : positive; 
+				 LPM_SIZE : positive; 
+				 LPM_TYPE : string := L_OR;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_2D(LPM_SIZE-1 downto 0, LPM_WIDTH-1 downto 0); 
+			  RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0)); 
+end component; 
+
+component LPM_XOR 
+		generic (LPM_WIDTH : positive; 
+				 LPM_SIZE : positive; 
+				 LPM_TYPE : string := L_XOR;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_2D(LPM_SIZE-1 downto 0, LPM_WIDTH-1 downto 0); 
+			  RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0)); 
+end component; 
+ 
+component LPM_BUSTRI 
+		generic (LPM_WIDTH : positive;
+				 LPM_TYPE : string := L_BUSTRI;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  ENABLEDT : in std_logic := '0';
+			  ENABLETR : in std_logic := '0';
+			  RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0);
+			  TRIDATA : inout std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_MUX 
+		generic (LPM_WIDTH : positive; 
+				 LPM_SIZE : positive; 
+				 LPM_WIDTHS : positive; 
+				 LPM_PIPELINE : integer := 0;
+				 LPM_TYPE : string := L_MUX;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_2D(LPM_SIZE-1 downto 0, LPM_WIDTH-1 downto 0);
+			  ACLR : in std_logic := '0';
+			  CLOCK : in std_logic := '0';
+			  CLKEN : in std_logic := '1';
+			  SEL : in std_logic_vector(LPM_WIDTHS-1 downto 0); 
+			  RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_DECODE
+		generic (LPM_WIDTH : positive;
+				 LPM_DECODES : positive;
+				 LPM_PIPELINE : integer := 0;
+				 LPM_TYPE : string := L_DECODE;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  CLOCK : in std_logic := '0';
+			  CLKEN : in std_logic := '1';
+			  ACLR : in std_logic := '0';
+			  ENABLE : in std_logic := '1';
+			  EQ : out std_logic_vector(LPM_DECODES-1 downto 0));
+end component;
+
+component LPM_CLSHIFT
+		generic (LPM_WIDTH : positive;
+				 LPM_WIDTHDIST : positive;
+				 LPM_SHIFTTYPE : string := &quot;LOGICAL&quot;;
+				 LPM_TYPE : string := L_CLSHIFT;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in STD_LOGIC_VECTOR(LPM_WIDTH-1 downto 0); 
+			  DISTANCE : in STD_LOGIC_VECTOR(LPM_WIDTHDIST-1 downto 0); 
+			  DIRECTION : in STD_LOGIC := '0';
+			  RESULT : out STD_LOGIC_VECTOR(LPM_WIDTH-1 downto 0);
+			  UNDERFLOW : out STD_LOGIC;
+			  OVERFLOW : out STD_LOGIC);
+end component;
+
+
+------------------------------------------------------------------------
+-- ARITHMETIC COMPONENTS -----------------------------------------------
+------------------------------------------------------------------------
+
+component LPM_ADD_SUB
+		generic (LPM_WIDTH : positive;
+				 LPM_DIRECTION : string := &quot;UNUSED&quot;;
+				 LPM_REPRESENTATION: string := &quot;SIGNED&quot;;
+				 LPM_PIPELINE : integer := 0;
+				 LPM_TYPE : string := L_ADD_SUB;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATAA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  DATAB : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  ACLR : in std_logic := '0';
+			  CLOCK : in std_logic := '0';
+			  CLKEN : in std_logic := '1';
+			  CIN : in std_logic := '0';
+			  ADD_SUB : in std_logic := '1';
+			  RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0);
+			  COUT : out std_logic;
+			  OVERFLOW : out std_logic);
+end component;
+
+component LPM_COMPARE
+		generic (LPM_WIDTH : positive;
+				 LPM_REPRESENTATION : string := &quot;UNSIGNED&quot;;
+				 LPM_PIPELINE : integer := 0;
+				 LPM_TYPE: string := L_COMPARE;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATAA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  DATAB : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  ACLR : in std_logic := '0';
+			  CLOCK : in std_logic := '0';
+			  CLKEN : in std_logic := '1';
+			  AGB : out std_logic;
+			  AGEB : out std_logic;
+			  AEB : out std_logic;
+			  ANEB : out std_logic;
+			  ALB : out std_logic;
+			  ALEB : out std_logic);
+end component;
+
+component LPM_MULT
+		generic (LPM_WIDTHA : positive;
+				 LPM_WIDTHB : positive;
+				 --LPM_WIDTHS : positive;
+				 LPM_WIDTHS : natural := 0;
+				 LPM_WIDTHP : positive;
+				 LPM_REPRESENTATION : string := &quot;UNSIGNED&quot;;
+				 LPM_PIPELINE : integer := 0;
+				 LPM_TYPE: string := L_MULT;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATAA : in std_logic_vector(LPM_WIDTHA-1 downto 0);
+			  DATAB : in std_logic_vector(LPM_WIDTHB-1 downto 0);
+			  ACLR : in std_logic := '0';
+			  CLOCK : in std_logic := '0';
+			  CLKEN : in std_logic := '1';
+			  SUM : in std_logic_vector(LPM_WIDTHS-1 downto 0) := (OTHERS =&gt; '0');
+			  RESULT : out std_logic_vector(LPM_WIDTHP-1 downto 0));
+end component;
+	
+component LPM_DIVIDE
+		generic (LPM_WIDTHN : positive;
+				 LPM_WIDTHD : positive;
+				 --LPM_WIDTHQ : positive;
+				 --LPM_WIDTHR : positive;
+				 LPM_NREPRESENTATION : string := &quot;UNSIGNED&quot;;
+				 LPM_DREPRESENTATION : string := &quot;UNSIGNED&quot;;
+				 LPM_PIPELINE : integer := 0;
+				 LPM_TYPE : string := L_DIVIDE;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (NUMER : in std_logic_vector(LPM_WIDTHN-1 downto 0);
+			  DENOM : in std_logic_vector(LPM_WIDTHD-1 downto 0);
+			  ACLR : in std_logic := '0';
+			  CLOCK : in std_logic := '0';
+			  CLKEN : in std_logic := '1';
+			  QUOTIENT : out std_logic_vector(LPM_WIDTHN-1 downto 0);
+			  REMAIN : out std_logic_vector(LPM_WIDTHD-1 downto 0));
+end component;
+				
+component LPM_ABS
+		generic (LPM_WIDTH : positive;
+				 LPM_TYPE: string := L_ABS;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0);
+			  OVERFLOW : out std_logic);
+end component;
+
+component LPM_COUNTER
+		generic (LPM_WIDTH : positive;
+				 LPM_MODULUS : natural := 0;
+				 LPM_DIRECTION : string := &quot;UNUSED&quot;;
+				 LPM_AVALUE : string := &quot;UNUSED&quot;;
+				 LPM_SVALUE : string := &quot;UNUSED&quot;;
+				 LPM_PVALUE : string := &quot;UNUSED&quot;;
+				 LPM_TYPE: string := L_COUNTER;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0):= (OTHERS =&gt; '0');
+			  CLOCK : in std_logic ;
+			  CLK_EN : in std_logic := '1';
+			  CNT_EN : in std_logic := '1';
+			  UPDOWN : in std_logic := '1';
+			  SLOAD : in std_logic := '0';
+			  SSET : in std_logic := '0';
+			  SCLR : in std_logic := '0';
+			  ALOAD : in std_logic := '0';
+			  ASET : in std_logic := '0';
+			  ACLR : in std_logic := '0';
+			  CIN : in std_logic := '0';
+			  COUT : out std_logic := '0';
+			  --EQ : out std_logic_vector(15 downto 0);
+			  Q : out std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+
+------------------------------------------------------------------------
+-- STORAGE COMPONENTS --------------------------------------------------
+------------------------------------------------------------------------
+
+component LPM_LATCH
+		generic (LPM_WIDTH : positive;
+				 LPM_AVALUE : string := &quot;UNUSED&quot;;
+				 LPM_PVALUE : string := &quot;UNUSED&quot;;
+				 LPM_TYPE: string := L_LATCH;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  GATE : in std_logic;
+			  ASET : in std_logic := '0';
+			  ACLR : in std_logic := '0';
+			  Q : out std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_FF
+		generic (LPM_WIDTH : positive;
+				 LPM_AVALUE : string := &quot;UNUSED&quot;;
+				 LPM_SVALUE : string := &quot;UNUSED&quot;;
+				 LPM_PVALUE : string := &quot;UNUSED&quot;;
+				 LPM_FFTYPE: string := &quot;DFF&quot;;
+				 LPM_TYPE: string := L_FF;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  CLOCK : in std_logic;
+			  ENABLE : in std_logic := '1';
+			  SLOAD : in std_logic := '0';
+			  SCLR : in std_logic := '0';
+			  SSET : in std_logic := '0';
+			  ALOAD : in std_logic := '0';
+			  ACLR : in std_logic := '0';
+			  ASET : in std_logic := '0';
+			  Q : out std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_SHIFTREG
+		generic (LPM_WIDTH : positive;
+				 LPM_AVALUE : string := &quot;UNUSED&quot;;
+				 LPM_SVALUE : string := &quot;UNUSED&quot;;
+				 LPM_PVALUE : string := &quot;UNUSED&quot;;
+				 LPM_DIRECTION: string := &quot;UNUSED&quot;;
+				 LPM_TYPE: string := L_SHIFTREG;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0) := (OTHERS =&gt; '0');
+			  CLOCK : in std_logic;
+			  ENABLE : in std_logic := '1';
+			  SHIFTIN : in std_logic := '1';
+			  LOAD : in std_logic := '0';
+			  SCLR : in std_logic := '0';
+			  SSET : in std_logic := '0';
+			  ACLR : in std_logic := '0';
+			  ASET : in std_logic := '0';
+			  Q : out std_logic_vector(LPM_WIDTH-1 downto 0);
+			  SHIFTOUT : out std_logic);
+end component;
+
+component LPM_RAM_DQ
+		generic (LPM_WIDTH : positive;
+				 LPM_WIDTHAD : positive;
+				 LPM_NUMWORDS : natural := 0;
+				 LPM_INDATA : string := &quot;REGISTERED&quot;;
+				 LPM_ADDRESS_CONTROL: string := &quot;REGISTERED&quot;;
+				 LPM_OUTDATA : string := &quot;REGISTERED&quot;;
+				 LPM_FILE : string := &quot;UNUSED&quot;;
+				 LPM_TYPE : string := L_RAM_DQ;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  ADDRESS : in std_logic_vector(LPM_WIDTHAD-1 downto 0);
+			  INCLOCK : in std_logic := '0';
+			  OUTCLOCK : in std_logic := '0';
+			  WE : in std_logic;
+			  Q : out std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_RAM_DP
+		generic (LPM_WIDTH : positive;
+				 LPM_WIDTHAD : positive;
+				 LPM_NUMWORDS : natural := 0;
+				 LPM_INDATA : string := &quot;REGISTERED&quot;;
+				 LPM_OUTDATA : string := &quot;REGISTERED&quot;;
+				 LPM_RDADDRESS_CONTROL : string := &quot;REGISTERED&quot;;
+				 LPM_WRADDRESS_CONTROL : string := &quot;REGISTERED&quot;;
+				 LPM_FILE : string := &quot;UNUSED&quot;;
+				 LPM_TYPE : string := L_RAM_DP;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (RDCLOCK : in std_logic := '0';
+			  RDCLKEN : in std_logic := '1';
+			  RDADDRESS : in std_logic_vector(LPM_WIDTHad-1 downto 0);
+			  RDEN : in std_logic := '1';
+			  DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  WRADDRESS : in std_logic_vector(LPM_WIDTHad-1 downto 0);
+			  WREN : in std_logic;
+			  WRCLOCK : in std_logic := '0';
+			  WRCLKEN : in std_logic := '1';
+			  Q : out std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_RAM_IO
+		generic (LPM_WIDTH : positive;
+				 LPM_WIDTHAD : positive;
+				 LPM_NUMWORDS : natural := 0;
+				 LPM_INDATA : string := &quot;REGISTERED&quot;;
+				 LPM_ADDRESS_CONTROL : string := &quot;REGISTERED&quot;;
+				 LPM_OUTDATA : string := &quot;REGISTERED&quot;;
+				 LPM_FILE : string := &quot;UNUSED&quot;;
+				 LPM_TYPE : string := L_RAM_IO;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (ADDRESS : in STD_LOGIC_VECTOR(LPM_WIDTHAD-1 downto 0);
+			  INCLOCK : in STD_LOGIC := '0';
+			  OUTCLOCK : in STD_LOGIC := '0';
+			  MEMENAB : in STD_LOGIC := '1';
+			  OUTENAB : in STD_LOGIC := 'Z';
+			  WE : in STD_LOGIC := 'Z';
+			  DIO : inout STD_LOGIC_VECTOR(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_ROM
+		generic (LPM_WIDTH : positive;
+				 LPM_WIDTHAD : positive;
+				 LPM_NUMWORDS : natural := 0;
+				 LPM_ADDRESS_CONTROL : string := &quot;REGISTERED&quot;;
+				 LPM_OUTDATA : string := &quot;REGISTERED&quot;;
+				 LPM_FILE : string;
+				 LPM_TYPE : string := L_ROM;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (ADDRESS : in STD_LOGIC_VECTOR(LPM_WIDTHAD-1 downto 0);
+			  INCLOCK : in STD_LOGIC := '0';
+			  OUTCLOCK : in STD_LOGIC := '0';
+			  MEMENAB : in STD_LOGIC := '1';
+			  Q : out STD_LOGIC_VECTOR(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_FIFO
+		generic (LPM_WIDTH : positive;
+				 LPM_WIDTHU : positive := 1;
+				 LPM_NUMWORDS : positive;
+				 LPM_SHOWAHEAD : string := &quot;OFF&quot;;
+				 LPM_TYPE : string := L_FIFO;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  CLOCK : in std_logic;
+			  WRREQ : in std_logic;
+			  RDREQ : in std_logic;
+			  ACLR : in std_logic := '0';
+			  SCLR : in std_logic := '0';
+			  Q : out std_logic_vector(LPM_WIDTH-1 downto 0);
+			  USEDW : out std_logic_vector(LPM_WIDTHU-1 downto 0);
+			  FULL : out std_logic;
+			  EMPTY : out std_logic);
+end component;
+
+component LPM_FIFO_DC
+		generic (LPM_WIDTH : positive ;
+				 LPM_WIDTHU : positive := 1;
+				 LPM_NUMWORDS : positive;
+				 LPM_SHOWAHEAD : string := &quot;OFF&quot;;
+				 LPM_TYPE : string := L_FIFO_DC;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  WRCLOCK : in std_logic;
+			  RDCLOCK : in std_logic;
+			  WRREQ : in std_logic;
+			  RDREQ : in std_logic;
+			  ACLR : in std_logic := '0';
+			  Q : out std_logic_vector(LPM_WIDTH-1 downto 0);
+			  WRUSEDW : out std_logic_vector(LPM_WIDTHU-1 downto 0);
+			  RDUSEDW : out std_logic_vector(LPM_WIDTHU-1 downto 0);
+			  WRFULL : out std_logic;
+			  RDFULL : out std_logic;
+			  WREMPTY : out std_logic;
+			  RDEMPTY : out std_logic);
+end component;
+
+
+------------------------------------------------------------------------
+-- TABLE PRIMITIVES ----------------------------------------------------
+------------------------------------------------------------------------
+
+component LPM_TTABLE
+		generic (LPM_WIDTHIN : positive;
+				 LPM_WIDTHOUT : positive;
+				 LPM_FILE : string;
+				 LPM_TRUTHTYPE : string := &quot;FD&quot;;                 
+				 LPM_TYPE : string := L_TTABLE;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTHIN-1 downto 0);
+			  RESULT : out std_logic_vector(LPM_WIDTHOUT-1 downto 0));
+end component;
+
+component LPM_FSM
+		generic (LPM_WIDTHIN : positive; 
+				 LPM_WIDTHOUT : positive; 
+				 LPM_WIDTHS : positive := 1;
+				 LPM_FILE : string ; 
+				 LPM_PVALUE : string := &quot;UNUSED&quot;;
+				 LPM_AVALUE : string := &quot;UNUSED&quot;;
+				 LPM_TRUTHTYPE : string := &quot;FD&quot;;
+				 LPM_TYPE : string := L_FSM;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTHIN-1 downto 0);
+			  CLOCK : in std_logic;
+			  ASET : in std_logic := '0';
+			  TESTENAB : in std_logic := '0';
+			  TESTIN : in std_logic := '0';
+			  TESTOUT : out std_logic;
+			  STATE : out std_logic_vector(LPM_WIDTHS-1 downto 0);
+			  RESULT : out std_logic_vector(LPM_WIDTHOUT-1 downto 0));
+end component;
+
+
+------------------------------------------------------------------------
+-- PAD PRIMITIVES ------------------------------------------------------
+------------------------------------------------------------------------
+
+component LPM_INPAD
+		generic (LPM_WIDTH : positive;
+				 LPM_TYPE : string := L_INPAD;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (PAD : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_OUTPAD
+		generic (LPM_WIDTH : positive;
+				 LPM_TYPE : string := L_OUTPAD;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  PAD : out std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+component LPM_BIPAD
+		generic (LPM_WIDTH : positive;
+				 LPM_TYPE : string := L_BIPAD;
+				 LPM_HINT : string := &quot;UNUSED&quot;);
+		port (DATA : in std_logic_vector(LPM_WIDTH-1 downto 0);
+			  ENABLE : in std_logic;
+			  RESULT : out std_logic_vector(LPM_WIDTH-1 downto 0);
+			  PAD : inout std_logic_vector(LPM_WIDTH-1 downto 0));
+end component;
+
+end;
+
+
+package body LPM_COMPONENTS is
+
+	function str_to_int( s : string ) return integer is
+	variable len : integer := s'length;
+	variable ivalue : integer := 0;
+	variable digit : integer;
+	begin
+        for i in 1 to len loop
+			case s(i) is
+				when '0' =&gt;
+					digit := 0;
+				when '1' =&gt;
+					digit := 1;
+				when '2' =&gt;
+					digit := 2;
+				when '3' =&gt;
+					digit := 3;
+				when '4' =&gt;
+					digit := 4;
+				when '5' =&gt;
+					digit := 5;
+				when '6' =&gt;
+					digit := 6;
+				when '7' =&gt;
+					digit := 7;
+				when '8' =&gt;
+					digit := 8;
+				when '9' =&gt;
+					digit := 9;
+				when others =&gt;
+					ASSERT FALSE
+					REPORT &quot;Illegal Character &quot;&amp;  s(i) &amp; &quot;in string parameter! &quot;
+					SEVERITY ERROR;
+			end case;
+			ivalue := ivalue * 10 + digit;
+		end loop;
+		return ivalue;
+	end;
+
+end;
+
+
+
+
+  </pre>
+<!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<hr align="center">
+
+<p>Copyright © 1998-2000 University of Manchester</p>
+</td></tr><!--msnavigation--></table></body>
+</html>
