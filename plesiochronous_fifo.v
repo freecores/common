@@ -41,11 +41,14 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: plesiochronous_fifo.v,v 1.2 2001-09-03 13:18:30 bbeaver Exp $
+// $Id: plesiochronous_fifo.v,v 1.3 2001-09-03 13:26:38 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2001/09/03 13:31:00  Blue Beaver
+// no message
+//
 // Revision 1.1  2001/09/03 12:51:43  Blue Beaver
 // no message
 //
@@ -71,7 +74,7 @@
 //           This code REQUIRES that the reader of the FIFO reads an entire
 //             packet in back-to-back clocks, with no dead cycles.
 //           This code REQUIRES that the writer of the FIFO leaves dead cycles
-//             when writing the FIFO, so that it does not overflow.
+//             between packets when writing the FIFO, so that it does not overflow.
 //
 // NOTE:  This FIFO REQUIRES that the Sender ALWAYS sends a full packet into
 //          the FIFO on adjacent Sender-side clocks.  NO WAIT STATES except at
