@@ -63,11 +63,23 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: encode_8b_10b.v,v 1.2 2001-10-23 10:27:18 bbeaver Exp $
+// $Id: encode_8b_10b.v,v 1.3 2001-10-25 07:52:00 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.13  2001/10/24 11:38:02  Blue Beaver
+// no message
+//
+// Revision 1.12  2001/10/24 09:47:40  Blue Beaver
+// no message
+//
+// Revision 1.11  2001/10/24 08:49:02  Blue Beaver
+// no message
+//
+// Revision 1.10  2001/10/24 07:28:08  Blue Beaver
+// no message
+//
 // Revision 1.9  2001/10/23 10:34:50  Blue Beaver
 // no message
 //
@@ -123,6 +135,7 @@
 module encode_8b_10b (
   eight_bit_data_or_control_in,
   input_is_control,
+  mess_up_link_disparity,
   ten_bit_encoded_data_out,
   invalid_control,
   clk,
@@ -131,6 +144,7 @@ module encode_8b_10b (
 
   input  [7:0] eight_bit_data_or_control_in;
   input   input_is_control;
+  input   mess_up_link_disparity;
   output [9:0] ten_bit_encoded_data_out;
   output  invalid_control;
   input   clk, reset;
@@ -238,12 +252,10 @@ module encode_8b_10b (
 // Calculate the values for the 5 -> 6 encoding
 
 // Discover important details about the incoming numbers.
-  wire   [1:0] LSB_02_Population = eight_bit_data_or_control_in[0]  // full adder
-                                 + eight_bit_data_or_control_in[1]
-                                 + eight_bit_data_or_control_in[2];
-  wire   [1:0] LSB_34_Population = eight_bit_data_or_control_in[3]  // full adder
-                                 + eight_bit_data_or_control_in[4];
-
+  wire   [1:0] LSB_02_Population = eight_bit_data_or_control_in[0]  // half adder
+                                 + eight_bit_data_or_control_in[1];
+  wire   [1:0] LSB_34_Population = eight_bit_data_or_control_in[2]  // half adder
+                                 + eight_bit_data_or_control_in[3];
   wire   [2:0] LSB_Population = {1'b0, LSB_02_Population[1:0]}
                               + {1'b0, LSB_34_Population[1:0]};
 
@@ -261,6 +273,14 @@ module encode_8b_10b (
   wire    LSB_is_7     = (eight_bit_data_or_control_in[4:0] == 5'h07);  // 7
   wire    LSB_is_24    = (eight_bit_data_or_control_in[4:0] == 5'h18);  // 24
   wire    LSB_is_28    = (eight_bit_data_or_control_in[4:0] == 5'h1C);  // 28
+  wire    LSB_is_23_27_29_30 = (eight_bit_data_or_control_in[4:0] == 5'h17)  // 23
+                             | (eight_bit_data_or_control_in[4:0] == 5'h1B)  // 27
+                             | (eight_bit_data_or_control_in[4:0] == 5'h1D)  // 29
+                             | (eight_bit_data_or_control_in[4:0] == 5'h1E);  // 30
+  wire    LSB_contains_other_i = (eight_bit_data_or_control_in[3:0] == 4'h0)
+                               | (eight_bit_data_or_control_in[3:0] == 4'h1)
+                               | (eight_bit_data_or_control_in[3:0] == 4'h2)
+                               | (eight_bit_data_or_control_in[3:0] == 4'h4);
 
 // Notice that the bottom bit of the encoded LSB data is the same as
 //   the input LSB data.
@@ -280,11 +300,6 @@ module encode_8b_10b (
 
 // Bits "e" and "i" are chosen to guarantee that there are enough transitions,
 //   and to control the disparity caused by each pattern.
-  wire    LSB_contains_other_i = (eight_bit_data_or_control_in[3:0] == 4'h0)
-                               | (eight_bit_data_or_control_in[3:0] == 4'h1)
-                               | (eight_bit_data_or_control_in[3:0] == 4'h2)
-                               | (eight_bit_data_or_control_in[3:0] == 4'h4);
-
 
   assign  first_level_encoded_data[4] =
                   (LSB_contains_one_one | eight_bit_data_or_control_in[4])
@@ -297,28 +312,30 @@ module encode_8b_10b (
                 | (input_is_control & LSB_is_28);
 
 // Now calculate the other information needed to produce the LSB output data
-  wire    LSB_term_has_positive_disparity =
+  wire    LSB_code_has_positive_disparity =
                 | (   (   LSB_all_zero
                         | LSB_contains_three_ones
                         | LSB_all_one)
-                    & (eight_bit_data_or_control_in[4] == 1'b1))
-                | input_is_control;
+                    & (eight_bit_data_or_control_in[4] == 1'b1) )
+                | (input_is_control & LSB_is_28);
 
-  wire    LSB_term_has_negative_disparity =
-                  (   LSB_all_zero
-                    | LSB_contains_one_one
-                    | LSB_all_one)
-                  & (eight_bit_data_or_control_in[4] == 1'b0);
+  wire    LSB_code_has_negative_disparity =
+                  ( (   LSB_all_zero
+                      | LSB_contains_one_one
+                      | LSB_all_one)
+                    & (eight_bit_data_or_control_in[4] == 1'b0) )
+                | LSB_is_24;
 
   wire    invert_LSB_if_input_disparity_is_positive =
-                LSB_term_has_positive_disparity | LSB_is_7;
+                  LSB_code_has_positive_disparity
+                | LSB_is_7;
 
   wire    invert_LSB_if_input_disparity_is_negative =
-                LSB_term_has_negative_disparity | LSB_is_24;
+                  LSB_code_has_negative_disparity;
 
   wire    LSB_toggle_running_disparity =
-                  LSB_term_has_positive_disparity
-                | invert_LSB_if_input_disparity_is_negative;
+                  LSB_code_has_positive_disparity
+                | LSB_code_has_negative_disparity;
 
 // Calculate the values for the 3 -> 4 encoding
 
@@ -354,11 +371,8 @@ module encode_8b_10b (
 
 // The second bit of the MSB is a pass-through except when the input
 //   is all 0's.
-  wire    MSB_all_zero = (eight_bit_data_or_control_in[7] == 1'h0)
-                       & (eight_bit_data_or_control_in[5] == 1'h0);
-
   assign  first_level_encoded_data[7] = eight_bit_data_or_control_in[6]
-                                      | MSB_all_zero;
+                                      | (eight_bit_data_or_control_in[7:5]  == 3'h0);
 
 // The top bit of the encoded MSB data is the same as the input MSB data.
   assign  first_level_encoded_data[8] = eight_bit_data_or_control_in[7];
@@ -382,7 +396,9 @@ module encode_8b_10b (
                     & (   (eight_bit_data_or_control_in[7:5] == 3'h1)
                         | (eight_bit_data_or_control_in[7:5] == 3'h2)
                         | (eight_bit_data_or_control_in[7:5] == 3'h5)
-                        | (eight_bit_data_or_control_in[7:5] == 3'h6) ));
+                        | (eight_bit_data_or_control_in[7:5] == 3'h6)
+                       )
+                  );
 
   wire    MSB_toggle_running_disparity =
                   (eight_bit_data_or_control_in[7:5] == 3'h0)
@@ -404,8 +420,6 @@ module encode_8b_10b (
     end
   end
 
-// disparity_from_LSB
-
 // Decide whether to invert the encoded data;
   wire    Invert_LSB = (   (Running_Disparity == 1'b1)
                          & (invert_LSB_if_input_disparity_is_positive == 1'b1) )
@@ -421,8 +435,7 @@ module encode_8b_10b (
   reg    [9:0] ten_bit_encoded_data_out;
   reg     invalid_control;
 
-//  always @(posedge clk)
-  always @(Invert_LSB or Invert_MSB or first_level_encoded_data or eight_bit_data_or_control_in or input_is_control)
+  always @(posedge clk)
   begin
     if (reset == 1'b1)
     begin
@@ -437,13 +450,10 @@ module encode_8b_10b (
                   {4{Invert_MSB}} ^ first_level_encoded_data[9:6];
       invalid_control <= input_is_control
                 & ~(   LSB_is_28  // all MSB bits are valid
-                     | (   (   (eight_bit_data_or_control_in[4:0] == 5'h17)  // 23
-                             | (eight_bit_data_or_control_in[4:0] == 5'h1B)  // 27
-                             | (eight_bit_data_or_control_in[4:0] == 5'h1D)  // 29
-                             | (eight_bit_data_or_control_in[4:0] == 5'h1E)  // 30
-                           )
+                     | (   LSB_is_23_27_29_30
                          & (eight_bit_data_or_control_in[7:5] == 3'h7)  // MSB must be 7
-                   ) );
+                        )
+                   );
     end
   end
 endmodule
@@ -454,14 +464,14 @@ module decode_10b_8b (
   ten_bit_encoded_data_in,
   eight_bit_data_or_control_out,
   output_is_control,
-  detected_invalid_8b_10b_sequence,
+  invalid_encoded_data,
   clk,
   reset
 );
   input  [9:0] ten_bit_encoded_data_in;
   output [7:0] eight_bit_data_or_control_out;
   output  output_is_control;
-  output  detected_invalid_8b_10b_sequence;
+  output  invalid_encoded_data;
   input   clk, reset;
 
 // Data is encoded as described in the encode_8b_10b module above.
@@ -475,84 +485,11 @@ module decode_10b_8b (
 // Errors are when an illegal bit sequence arrives, or when the disparity
 //   of the input data goes beyond 1 bit.  This would happen if the sender
 //   did not correctly use alternate encodings of output data.
-//
-// As a reminder, this is the list of valid codes.  These codes need to
-//   be decoded into the 8-bit data, into an indication that a control
-//   data is being sent, and into an indication that an error is detected.
-//
-//  TABLE I 5B/6B ENCODING  (NOTE LSB TO LEFT)
-//  NAME    ABCDE    K     D-1  abcdei  DO   ALTERNATE
-//  ______________________________________
-//  D.0     00000    0     +    011000  -    100111
-//  D.1     10000    0     +    100010  -    011101   !
-//  D.2     01000    0     +    010010  -    101101   !
-//  D.3     11000    0     x    110001  0             !
-//  D.4     00100    0     +    001010  -    110101   !
-//  D.5     10100    0     x    101001  0             !
-//  D.6     01100    0     x    011001  0             !
-//  D.7     11100    0     -    111000  0    000111   !
-//  D.8     00010    0     +    000110  -    111001   !
-//  D.9     10010    0     x    100101  0             !
-//  D.10    01010    0     x    010101  0             !
-//  D.11    11010    0     x    110100  0             !
-//  D.12    00110    0     x    001101  0             !
-//  D.13    10110    0     x    101100  0             !
-//  D.14    01110    0     x    011100  0             !
-//  D.15    11110    0     +    101000  -    010111
-//  D.16    00001    0     -    011011  +    100100
-//  D.17    10001    0     x    100011  0             !
-//  D.18    01001    0     x    010011  0             !
-//  D.19    11001    0     x    110010  0             !
-//  D.20    00101    0     x    001011  0             !
-//  D.21    10101    0     x    101010  0             !
-//  D.22    01101    0     x    011010  0             !
-//  D.23    11101    x     -    111010  +    000101   !
-//  D.24    00011    0     +    001100  -    110011
-//  D.25    10011    0     x    100110  0             !
-//  D.26    01011    0     x    010110  0             !
-//  D.27    11011    x     -    110110  +    001001   !
-//  D.28    00111    0     x    001110  0             !
-//  D.29    10111    x     -    101110  +    010001   !
-//  D.30    01111    x     -    011110  +    100001   !
-//  D.31    11111    0     -    101011  +    010100
-//
-//  K.23    11101    x     -    111010  +    000101   !
-//  K.27    11011    x     -    110110  +    001001   !
-//  K.28    00111    1     -    001111  +    110000   !
-//  K.29    10111    x     -    101110  +    010001   !
-//  K.30    01111    x     -    011110  +    100001   !
-//
-//  TABLE II 3B/4B ENCODING  (NOTE LSB TO LEFT)
-//  NAME     FGH     K     D-1   fghj   DO   ALTERNATE
-//  ______________________________________ 
-//  D.x.0    000     x     +     0100   -    1011 
-//  D.x.1    100     0     x     1001   0             !
-//  D.x.2    010     0     x     0101   0             !
-//  D.x.3    110     x     -     1100   0    0011     !
-//  D.x.4    001     x     +     0010   -    1101     !
-//  D.x.5    101     0     x     1010   0             !
-//  D.x.6    011     0     x     0110   0             !
-//  D.x.P7   111     0     -     1110   +    0001     ! Primary
-//  D.x.A7   111     x     -     0111   +    1000       Alternate
-//
-//  K.28.0   000     x     +     0100   -    1011
-//  K.28.1   100     1     +     1001   0    0110     ! Singular Comma
-//  K.28.2   010     1     +     0101   0    1010     !
-//  K.28.3   110     x     -     1100   0    0011     !
-//  K.28.4   001     x     +     0010   -    1101     !
-//  K.28.5   101     1     +     1010   0    0101     ! Singular Comma
-//  K.28.6   011     1     +     0110   0    1001     !
-//  K.28.7   111     x     -     0111   +    1000       Singular Comma
-//
-//  K.23.7   111     x     -     0111   +    1000
-//  K.27.7   111     x     -     0111   +    1000
-//  K.29.7   111     x     -     0111   +    1000
-//  K.30.7   111     x     -     0111   +    1000
 
 // Accumulate the new data.  Calculate ignoring the running disparity;
   wire   [7:0] decoded_data;
 
-// Calculate the values for the 6 -> 5 encoding
+// Calculate the values for the 6 -> 5 decoding
 
 // Discover important details about the incoming numbers.
   wire   [1:0] LSB_02_Population = ten_bit_encoded_data_in[0]  // full adder
@@ -561,12 +498,10 @@ module decode_10b_8b (
   wire   [1:0] LSB_35_Population = ten_bit_encoded_data_in[3]  // full adder
                                  + ten_bit_encoded_data_in[4]
                                  + ten_bit_encoded_data_in[5];
-
-  wire   [2:0] LSB_Population = {1'b0, LSB_02_Population[1:0]}  // allowed: 2, 3, 4
-                              + {1'b0, LSB_35_Population[1:0]};  // illegal: 0, 1, 5, 6
-
   wire   [2:0] LSB_bottom_4_Population = {1'b0, LSB_02_Population[1:0]}
                                        + {2'b00, ten_bit_encoded_data_in[3]};
+  wire   [2:0] LSB_Population = {1'b0, LSB_02_Population[1:0]}  // allowed: 2, 3, 4
+                              + {1'b0, LSB_35_Population[1:0]};  // illegal: 0, 1, 5, 6
 
 // As can be seen, in many of the LSB encodings the bottom
 //   4 of the decoded data are identical to the input
@@ -578,12 +513,12 @@ module decode_10b_8b (
 
 // The bottom 4 bits must be inverted before use in these cases:  (MSB right)
 //   011101 101101 110101 111001 000101 001001 010001 100001 000111 110000
-  wire    Invert_Before_Use = (   (ten_bit_encoded_data_in[5:4] == 2'b10)
-                                & (   (LSB_bottom_4_Population[2:0] == 3'h1)
-                                    | (LSB_bottom_4_Population[2:0] == 3'h3) )
-                              )
-                            | (ten_bit_encoded_data_in[5:0] == 6'b111000)  // LSB to right
-                            | (ten_bit_encoded_data_in[5:0] == 6'b000011);
+  wire    LSB_Invert_Before_Use = (   (ten_bit_encoded_data_in[5:4] == 2'b10)
+                                    & (   (LSB_bottom_4_Population[2:0] == 3'h1)
+                                        | (LSB_bottom_4_Population[2:0] == 3'h3) )
+                                  )
+                                | (ten_bit_encoded_data_in[5:0] == 6'b111000)  // LSB to right
+                                | (ten_bit_encoded_data_in[5:0] == 6'b000011);
 
 // Values must be substituted in these cases:
   wire    LSB_is_0_16_a  = (ten_bit_encoded_data_in[5:0] == 6'b000110)  // LSB to right
@@ -601,6 +536,16 @@ module decode_10b_8b (
   wire    LSB_is_24_a    = (ten_bit_encoded_data_in[5:0] == 6'b001100);  // LSB to right
   wire    LSB_is_24_b    = (ten_bit_encoded_data_in[5:0] == 6'b110011);  // LSB to right
 
+// Notice when these codes occur.  They are the only time Alternate D.x.7 data
+//   can be used.  This is looked for below to detect errors.
+  wire    LSB_is_11_13_14 = (ten_bit_encoded_data_in[5:0] == 6'b001011)  // LSB to right
+                          | (ten_bit_encoded_data_in[5:0] == 6'b001101)
+                          | (ten_bit_encoded_data_in[5:0] == 6'b001110);
+
+  wire    LSB_is_17_18_20 = (ten_bit_encoded_data_in[5:0] == 6'b110001)  // LSB to right
+                          | (ten_bit_encoded_data_in[5:0] == 6'b110010)
+                          | (ten_bit_encoded_data_in[5:0] == 6'b110100);
+
 // Control signals must be called out when recognized.
   wire    LSB_is_23_27_29_30 = (   (ten_bit_encoded_data_in[5:4] == 2'b01)
                                  & (LSB_bottom_4_Population[2:0] == 3'h3) )
@@ -611,7 +556,7 @@ module decode_10b_8b (
                       | (ten_bit_encoded_data_in[5:0] == 6'b000011);
 
 // calculate the bottom 4 bits of decoded data
-  wire   [3:0] LSB_XOR_Term = {4{Invert_Before_Use}}  // invert all signals with alternate values
+  wire   [3:0] LSB_XOR_Term = {4{LSB_Invert_Before_Use}}  // invert all signals with alternate values
                             | {1'b0,  LSB_is_0_16_a, LSB_is_0_16_a,  1'b0}  // make 0, 16 into 0
                             | {LSB_is_0_16_b,  1'b0, 1'b0,  LSB_is_0_16_b}  // make 0, 16 into 0
                             | {LSB_is_15_31_a, 1'b0, LSB_is_15_31_a, 1'b0}  // make 15, 31 into 15
@@ -631,41 +576,61 @@ module decode_10b_8b (
                           | LSB_is_23_27_29_30
                           | LSB_is_K28;
 
-// Calculate the values for the 6 -> 5 encoding
+// Calculate the values for the 4 -> 3 decoding
 
-  wire    MSB_detected_0_value = (ten_bit_encoded_data_in[9:6] == 4'b0010)
-                               | (ten_bit_encoded_data_in[9:6] == 4'b1101);
+// The bottom 2 bits of the MSB must always be inverted before use in these
+//    cases:  (MSB right)  0011, 1101, 0001
+// When the LSB indicate that the byte contains a K28, and the bottom 6 bits
+//   have a negative disparity, invert these before using: (MSB right)
+//   0110, 1010, 0101, 1001
+// Only 2 of these are needed to greate singular commas.  I don't understand
+//   why they made the other special cases.  Very odd
 
-  wire    detected_alternate_encoding = (ten_bit_encoded_data_in[9:6] == 4'b0111)
-                                      | (ten_bit_encoded_data_in[9:6] == 4'b1000);
+  wire    MSB_Invert_Before_Use = (ten_bit_encoded_data_in[9:6] == 4'b1100)  // LSB to right
+                                | (ten_bit_encoded_data_in[9:6] == 4'b1011)
+                                | (ten_bit_encoded_data_in[9:6] == 4'b1000)
+                                | (   (ten_bit_encoded_data_in[5:0] == 6'b000011)
+                                    & (   (ten_bit_encoded_data_in[9:6] == 4'b0110)
+                                        | (ten_bit_encoded_data_in[9:6] == 4'b0101)
+                                        | (ten_bit_encoded_data_in[9:6] == 4'b1010)
+                                        | (ten_bit_encoded_data_in[9:6] == 4'b1001)
+                                      )
+                                  );
 
-  assign  decoded_data[5] = ten_bit_encoded_data_in[6] | detected_alternate_encoding;
-  assign  decoded_data[6] = ten_bit_encoded_data_in[7] & ~MSB_detected_0_value;
-  assign  decoded_data[7] = ten_bit_encoded_data_in[8] | detected_alternate_encoding;
+// Values must be substituted in these cases:
+  wire    MSB_0_value_a = (ten_bit_encoded_data_in[9:6] == 4'b0010);  // LSB to right
+  wire    MSB_0_value_b = (ten_bit_encoded_data_in[9:6] == 4'b1101);
 
-// Detect invalid code values.
+  wire    alternate_MSB_a = (ten_bit_encoded_data_in[9:6] == 4'b1110);  // LSB to right
+  wire    alternate_MSB_b = (ten_bit_encoded_data_in[9:6] == 4'b0001);
 
-// From the table in the encode function, we see that the following "abcdei"
-//   values are illegal:  (NOTE LSB TO LEFT)
-//
-//  000000  (population 0)
-//  100000 010000 001000 000100 000010 000001  (population 1)
-//  111100 000011  (could result in unintended run of 5 identical values)
-//  111110 111101 111011 110111 101111 011111  (population 5)
-//  111111  (population 6)
-//
-// We see that the following "fghj" values are illegal:  (NOTE LSB TO LEFT)
-//
-//  0000, 1111  (populations 0 and 4)
-//
-// We know that singular commas can only contain a string of 5 like values
-//   at "c=d=e=i=f", so 
-//
-// It is hard to discover which other combinations are invalid.  So I write
-//   a program below to let me discover all invalid combinations.
+  wire    primary_MSB_a = (ten_bit_encoded_data_in[9:6] == 4'b0111);  // LSB to right
+  wire    primary_MSB_b = (ten_bit_encoded_data_in[9:6] == 4'b1000);
 
+  wire   [2:0] MSB_XOR_Term = {3{MSB_Invert_Before_Use}}
+                            | {1'b0, MSB_0_value_a, 1'b0}
+                            | {MSB_0_value_b, 1'b0, MSB_0_value_b}
+                            | {1'b0, 1'b0, alternate_MSB_a}
+                            | {alternate_MSB_b, alternate_MSB_b, 1'b0};
+
+  assign  decoded_data[7:5] = ten_bit_encoded_data_in[8:6] ^ MSB_XOR_Term[2:0];
+
+  wire    decoded_control = (   LSB_is_23_27_29_30
+                              & (alternate_MSB_a | alternate_MSB_b))
+                          | LSB_is_K28;
 
 // Keep track of the running disparity.  If 1'b1, the disparity is positive.
+
+  wire   [1:0] MSB_01_Population = ten_bit_encoded_data_in[6]  // half adder
+                                 + ten_bit_encoded_data_in[7];
+  wire   [1:0] MSB_23_Population = ten_bit_encoded_data_in[8]  // half adder
+                                 + ten_bit_encoded_data_in[9];
+  wire   [2:0] MSB_Population = {1'b0, MSB_01_Population[1:0]}  // 1, 2, 3
+                              + {1'b0, MSB_23_Population[1:0]};
+
+  wire   [3:0] Code_Population = {1'b0, LSB_Population[2:0]}  // 4, 5, 6
+                               + {1'b0, MSB_Population[2:0]};
+
   reg     Running_Disparity;
 
   always @(posedge clk)
@@ -676,17 +641,91 @@ module decode_10b_8b (
     end
     else
     begin
-      Running_Disparity <= Running_Disparity;
+      Running_Disparity <= (Code_Population[3:0] == 4'h6)
+                         ? 1'b1
+                         : (   (Code_Population[3:0] == 4'h4)
+                             ? 1'b0
+                             : Running_Disparity);
     end
   end
+
+// Detect invalid code values.
+
+  wire    too_many_bits_in_first_nibble =
+                (LSB_bottom_4_Population[2:0] > 3'h3);
+  wire    too_few_bits_in_first_nibble =
+                (LSB_bottom_4_Population[2:0] < 3'h1);
+
+  wire    too_many_bits_in_LSB = (LSB_Population[2:0] > 3'h4);
+  wire    too_few_bits_in_LSB = (LSB_Population[2:0] < 3'h2);
+
+  wire    too_many_bits_in_MSB = (MSB_Population[2:0] > 3'h3);
+  wire    too_few_bits_in_MSB = (LSB_Population[2:0] < 3'h1);
+
+  wire    too_many_bits_in_entire_code = (Code_Population[3:0] > 4'h6);
+  wire    too_few_bits_in_entire_code = (Code_Population[3:0] < 4'h4);
+
+  wire    LSB_inconsistent_with_running_disparity =
+                  (   (Running_Disparity == 1'b1)
+                    & (   (LSB_Population[2:0] == 3'h4)
+                        | (ten_bit_encoded_data_in[5:0] == 6'b000111)  // X.7 negative disparity
+                      ) )
+                | (   (Running_Disparity == 1'b0)
+                    & (   (LSB_Population[2:0] == 3'h2)
+                        | (ten_bit_encoded_data_in[5:0] == 6'b111000)  // X.7 positive disparity
+                      ) );
+
+  wire    LSB_code_7_positive_but_MSB_inconsistent =
+                  (ten_bit_encoded_data_in[5:0] == 6'b111000)  // X.7 positive disparity
+                & (   (MSB_Population[2:0] == 3'h3)  // too many bits in MSB
+                    | (ten_bit_encoded_data_in[9:6] == 4'b0011)  // Y.3 negative disparity
+                  );
+
+  wire    LSB_code_7_negative_but_MSB_inconsistent =
+                  (ten_bit_encoded_data_in[5:0] == 6'b000111)  // X.7 negative disparity
+                & (   (MSB_Population[2:0] == 3'h1)  // too few bits in MSB
+                    | (ten_bit_encoded_data_in[9:6] == 4'b1100)  // Y.3 positive disparity
+                  );
+
+  wire    MSB_code_3_positive_but_LSB_inconsistent =
+                  (ten_bit_encoded_data_in[9:6] == 4'b1100)  // X.7 positive disparity
+                & (LSB_Population[2:0] == 3'h2);  // too few bits in LSB
+
+  wire    MSB_code_3_negative_but_LSB_inconsistent =
+                  (ten_bit_encoded_data_in[9:6] == 4'b0011)  // X.7 negative disparity
+                & (LSB_Population[2:0] == 3'h4);  // too many bits in LSB
+
+  wire    alternate_encoding_not_used_when_required =
+                  ((Running_Disparity == 1'b1) & (LSB_is_11_13_14) & primary_MSB_b)
+                | ((Running_Disparity == 1'b0) & (LSB_is_17_18_20) & primary_MSB_a)
+                | (LSB_is_K28 & (primary_MSB_a | primary_MSB_b));
+
+  wire    primary_encoding_not_used_when_required =
+                  ((Running_Disparity == 1'b0) & (LSB_is_11_13_14) & alternate_MSB_b)
+                | ((Running_Disparity == 1'b1) & (LSB_is_17_18_20) & alternate_MSB_a);
+
+  wire    detected_invalid_8b_10b_sequence = too_many_bits_in_first_nibble
+                                           | too_few_bits_in_first_nibble
+                                           | too_many_bits_in_LSB
+                                           | too_few_bits_in_LSB
+                                           | too_many_bits_in_MSB
+                                           | too_few_bits_in_MSB
+                                           | too_many_bits_in_entire_code
+                                           | too_few_bits_in_entire_code
+                                           | LSB_inconsistent_with_running_disparity
+                                           | LSB_code_7_positive_but_MSB_inconsistent
+                                           | LSB_code_7_negative_but_MSB_inconsistent
+                                           | MSB_code_3_positive_but_LSB_inconsistent
+                                           | MSB_code_3_negative_but_LSB_inconsistent
+                                           | alternate_encoding_not_used_when_required
+                                           | primary_encoding_not_used_when_required;
 
 // Calculate the actual decoded data.
   reg    [7:0] eight_bit_data_or_control_out;
   reg     output_is_control;
   reg     invalid_encoded_data;
 
-//  always @(posedge clk)
-  always @(decoded_data)
+  always @(posedge clk)
   begin
     if (reset == 1'b1)
     begin
@@ -697,31 +736,12 @@ module decode_10b_8b (
     else
     begin
       eight_bit_data_or_control_out[7:0] <= decoded_data[7:0];
-      output_is_control <= 1'b0;
-      invalid_encoded_data <= 1'b0;
-
+      output_is_control <= decoded_control;
+      invalid_encoded_data <= detected_invalid_8b_10b_sequence
+                            & (ten_bit_encoded_data_in[9:0] != 10'b0000_000000)  // NOTE TEMPORARY
+                            ;
     end
   end
-// synopsys translate_off
-  initial
-  begin
-/*
-    if (NUM_BITS < 2)
-    begin
-      $display ("*** Exiting because %m bin_to_grey_code Number of bits %d < 2",
-                   NUM_BITS);
-      $finish;
-    end
-    if (NUM_BITS > 16)
-    begin
-      $display ("*** Exiting because %m bin_to_grey_code Number of bits %d > 16",
-                   NUM_BITS);
-      $finish;
-    end
- */
-  end
-// synopsys translate_on
-
 endmodule
 
 `define TEST_8B_10B
@@ -732,72 +752,170 @@ module test_8b_10b;
 
   reg    [7:0] eight_bit_data_or_control_in;
   reg     input_is_control;
+  reg     mess_up_link_disparity;
   wire   [9:0] ten_bit_encoded_data_out;
   wire    invalid_control;
 
   wire   [7:0] eight_bit_data_or_control_out;
   wire    output_is_control;
-  wire    detected_invalid_8b_10b_sequence;
+  wire    invalid_encoded_data;
 
   reg     clk, reset;
 
+task set_to_negative_disparity;
+  begin
+    clk = 1'b0;  reset = 1'b1; #1;
+    clk = 1'b1;  reset = 1'b1; #1;  // do reset, setting sender to negative disparity
+    clk = 1'b0;  reset = 1'b1; #1;
+    clk = 1'b0;  reset = 1'b0; #1;
+  end
+endtask
+
+task set_to_positive_disparity;
+  begin
+    clk = 1'b0;  reset = 1'b1; #1;
+    clk = 1'b1;  reset = 1'b1; #1;  // do reset, setting sender to negative disparity
+    clk = 1'b0;  reset = 1'b1; #1;
+    clk = 1'b0;  reset = 1'b0; #1;
+
+    eight_bit_data_or_control_in[7:0] = 8'b111_00011; #1;
+    clk = 1'b1; #1;  // switch to a positive running disparity
+    clk = 1'b0; #1;
+  end
+endtask
+
+task check;
+  input disparity;
+  input  [7:0] test_data;
+  input   test_control;
+  reg    [9:0] latched_code;
+  begin
+    if (disparity == 1'b1)
+      set_to_positive_disparity;
+    else
+      set_to_negative_disparity;
+
+    input_is_control = test_control;
+    eight_bit_data_or_control_in[7:0] = test_data[7:0]; #1;  // inputs settle
+    clk = 1'b1; #1;  // encoded data available
+    clk = 1'b0; #1;
+
+    latched_code[9:0] = ten_bit_encoded_data_out[9:0];
+
+    input_is_control = 1'b0;
+    eight_bit_data_or_control_in[7:0] = 8'b010_00011; #1;
+    clk = 1'b1; #1;  // decoded data available
+    clk = 1'b0; #1;
+
+    if (   (eight_bit_data_or_control_out[7:0] !== test_data[7:0])
+         | (output_is_control !== test_control)
+         | (invalid_encoded_data !== 1'b0)
+       )
+    begin
+      $display ("!!! test data, result %d %d %b_%b %x %d %b %b",
+                 test_data[7:5], test_data[4:0],
+                 latched_code[9:6], latched_code[5:0],
+                 eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
+                 output_is_control, invalid_encoded_data);
+    end
+  end
+endtask
+
   initial
   begin
-    #1; clk = 1'b0;  reset = 1'b1;
-    #1; clk = 1'b1;  reset = 1'b1;
-    #1; clk = 1'b0;  reset = 1'b0;
+    mess_up_link_disparity = 1'b0;
 
-    input_is_control = 1'b0;
-    for (test_data = 9'h000; test_data < 9'h020; test_data = test_data + 9'h001)
+    $display ("test 32 LSB data values starting with negative disparity");
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h020;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
     begin
-      eight_bit_data_or_control_in[7:0] = test_data[7:0];
-      # 1; $display ("test data, result %x %x %b %b %x %x %b %b",
-                 eight_bit_data_or_control_in[7:5], eight_bit_data_or_control_in[4:0],
-                 ten_bit_encoded_data_out[9:6], ten_bit_encoded_data_out[5:0],
-                 eight_bit_data_or_control_out[7:5], eight_bit_data_or_control_out[4:0],
-                 output_is_control, detected_invalid_8b_10b_sequence);
-    end
-/*
-    input_is_control = 1'b1;
-    test_data = 23;
-      # 0; $display ("test data, result %x %b %b %b %b",
-                         test_data[7:0], first_level_encoded_data[5:0],
-                         invert_LSB_if_input_disparity_is_positive,
-                         invert_LSB_if_input_disparity_is_negative,
-                         LSB_toggle_running_disparity);
-    for (test_data = 27; test_data < 31; test_data = test_data + 9'h001)
-    begin
-      # 0; $display ("test data, result %x %b %b %b %b",
-                         test_data[7:0], first_level_encoded_data[5:0],
-                         invert_LSB_if_input_disparity_is_positive,
-                         invert_LSB_if_input_disparity_is_negative,
-                         LSB_toggle_running_disparity);
+      check (0, test_data[7:0], 1'b0);
     end
 
-    input_is_control = 1'b0;
-    for (test_data = 9'h000 + 28; test_data < 9'h100; test_data = test_data + 9'h020)
+    $display ("test 8 MSB data values starting with negative disparity");
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h008;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
     begin
-      # 0; $display ("test data, result %x %b %b %b %b",
-                         test_data[7:0], first_level_encoded_data[9:6],
-                         invert_MSB_if_LSB_disparity_is_positive,
-                         invert_MSB_if_LSB_disparity_is_negative,
-                         MSB_toggle_running_disparity);
+      check (0, (test_data[2:0] << 5) | 5'h03, 1'b0);
     end
-    input_is_control = 1'b1;
-    for (test_data = 9'h000 + 28; test_data < 9'h100; test_data = test_data + 9'h020)
+
+    $display ("test 8 MSB data values starting with negative disparity");
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h008;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
     begin
-      # 0; $display ("test data, result %x %b %b %b %b",
-                         test_data[7:0], first_level_encoded_data[9:6],
-                         invert_MSB_if_LSB_disparity_is_positive,
-                         invert_MSB_if_LSB_disparity_is_negative,
-                         MSB_toggle_running_disparity);
+      check (0, (test_data[2:0] << 5) | 5'h0B, 1'b0);  // 11
     end
- */
+
+    $display ("test 8 MSB data values starting with negative disparity");
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h008;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
+    begin
+      check (0, (test_data[2:0] << 5) | 5'h11, 1'b0);  // 17
+    end
+
+    $display ("test control starting with negative disparity");
+    check (0, `K_23_7, 1'b1);
+    check (0, `K_27_7, 1'b1);
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h008;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
+    begin
+      check (0, `K_28_0 | (test_data[2:0] << 5), 1'b1);
+    end
+    check (0, `K_29_7, 1'b1);
+    check (0, `K_30_7, 1'b1);
+
+//    $display ("invalid control character with negative disparity");
+//    check (0, 8'h0, 1'b1);
+
+
+    $display ("test 32 LSB data values starting with positive disparity");
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h020;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
+    begin
+      check (1, test_data[7:0], 1'b0);
+    end
+
+    $display ("test 8 MSB data values starting with positive disparity");
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h008;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
+    begin
+      check (1, (test_data[2:0] << 5) | 5'h03, 1'b0);
+    end
+
+    $display ("test 8 MSB data values starting with positive disparity");
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h008;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
+    begin
+      check (1, (test_data[2:0] << 5) | 5'h0B, 1'b0);  // 11
+    end
+
+    $display ("test 8 MSB data values starting with positive disparity");
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h008;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
+    begin
+      check (1, (test_data[2:0] << 5) | 5'h11, 1'b0);  // 17
+    end
+
+    $display ("test control starting with positive disparity");
+    check (1, `K_23_7, 1'b1);
+    check (1, `K_27_7, 1'b1);
+    for (test_data[8:0] = 9'h000; test_data[8:0] < 9'h008;
+                      test_data[8:0] = test_data[8:0] + 9'h001)
+    begin
+      check (1, `K_28_0 | (test_data[2:0] << 5), 1'b1);
+    end
+    check (1, `K_29_7, 1'b1);
+    check (1, `K_30_7, 1'b1);
+
+//    $display ("invalid control character with positive disparity");
+//    check (1, 8'h0, 1'b1);
+
   end
 
 encode_8b_10b encode_8b_10b (
   .eight_bit_data_or_control_in (eight_bit_data_or_control_in[7:0]),
   .input_is_control           (input_is_control),
+  .mess_up_link_disparity     (mess_up_link_disparity),
   .ten_bit_encoded_data_out   (ten_bit_encoded_data_out[9:0]),
   .invalid_control            (invalid_control),
   .clk                        (clk),
@@ -808,10 +926,9 @@ decode_10b_8b decode_10b_8b (
   .ten_bit_encoded_data_in    (ten_bit_encoded_data_out[9:0]),
   .eight_bit_data_or_control_out (eight_bit_data_or_control_out[7:0]),
   .output_is_control          (output_is_control),
-  .detected_invalid_8b_10b_sequence (detected_invalid_8b_10b_sequence),
+  .invalid_encoded_data       (invalid_encoded_data),
   .clk                        (clk),
   .reset                      (reset)
-
 );
 endmodule
 `endif  // TEST_8B_10B
@@ -819,6 +936,11 @@ endmodule
 // `define DISCOVER_WHICH_CODES_ARE_ILLEGAL
 `ifdef DISCOVER_WHICH_CODES_ARE_ILLEGAL
 module figure_out_error_patterns;
+
+// NOTE: For the purpose of comparing with the patent, this exploration
+//         module uses the notation that the LEFTMOST BIT is the LSB.
+//       All other modules use the more normal Rightmost Bit == bit 0 == LSB
+
   reg    [10:0] i;
 
   reg    [9:0] full_addr; 
@@ -1026,7 +1148,7 @@ initial
       begin
         invalid[i[9:0]] = 1'b1;
       end
-// Get rid of patterns which use D.7.y with the wrong disparity.
+// Get rid of patterns which use D.7.y with the wrong disparity.  8
       if ((i[9:4] == 6'b111000) & (i[3] + i[2] + i[1] + i[0] == 1))  // minus then minus
       begin
         invalid[i[9:0]] = 1'b1;
@@ -1035,7 +1157,7 @@ initial
       begin
         invalid[i[9:0]] = 1'b1;
       end
-// Get rid of patterns which use D.x.3 with the wrong disparity.
+// Get rid of patterns which use D.x.3 with the wrong disparity.  28
       if (   (i[3:0] == 4'b0011)
            & ((i[9] + i[8] + i[7] + i[6] + i[5] + i[4]) == 2))
       begin
@@ -1046,58 +1168,84 @@ initial
       begin
         invalid[i[9:0]] = 1'b1;
       end
-// Get rid of non-control codes which use alternate encoding inappropriately.
-// These are all the data items except 23, 27, 29, and 39 which do not end in
-//   00 or 11 as the MSB.  This excludes control codes, which use alternate encoding.
-      if (   (i[9:4] != 6'b111010) & (i[9:4] != 6'b000101)  // 23
-           & (i[9:4] != 6'b110110) & (i[9:4] != 6'b001001)  // 27
-           & (i[9:4] != 6'b101110) & (i[9:4] != 6'b010001)  // 29
-           & (i[9:4] != 6'b011110) & (i[9:4] != 6'b100001)  // 30
-           & ((i[5:4] == 2'b01) | (i[5:4] == 2'b10)))
-      begin
-        if ((i[3:0] == 4'b0111) | (i[3:0] == 4'b1000))
-        begin
-          invalid[i[9:0]] = 1'b1;
-        end
-      end
     end
 
 // Get rid of case when D.x.3 and D.7.y are used together as D.7.3
     valid[10'b111000_0011] = 1'b1;
     valid[10'b000111_1100] = 1'b1;
 
-// Get rid of case where LSB has 3 bits set, input disparity makes primary
-//   or alternate code impossible.
-    invalid[10'b110100_0111] = 1'b1;  // negative in  11
-    invalid[10'b110100_0001] = 1'b1;  // positive in  11
-    invalid[10'b101100_0111] = 1'b1;  // negative in  13
-    invalid[10'b101100_0001] = 1'b1;  // positive in  13
-    invalid[10'b011100_0111] = 1'b1;  // negative in  14
-    invalid[10'b011100_0001] = 1'b1;  // positive in  14
-    invalid[10'b100011_1110] = 1'b1;  // negative in  17
-    invalid[10'b100011_1000] = 1'b1;  // positive in  17
-    invalid[10'b010011_1110] = 1'b1;  // negative in  18
-    invalid[10'b010011_1000] = 1'b1;  // positive in  18
-    invalid[10'b001011_1110] = 1'b1;  // negative in  20
-    invalid[10'b001011_1000] = 1'b1;  // positive in  20
+    for (i[10:0] = 11'h000; i[10:0] < 11'h400; i[10:0] = i[10:0] + 11'h001)
+    begin
+// Get rid of non-control codes which use alternate encoding inappropriately.  32
+// These are all the data items except 23, 27, 29, and 30 which do not end in
+//   00 or 11 as the MSB.  This excludes control codes, which use alternate encoding.
+      if (   (i[9:4] != 6'b111010) & (i[9:4] != 6'b000101)  // 23
+           & (i[9:4] != 6'b110110) & (i[9:4] != 6'b001001)  // 27
+           & (i[9:4] != 6'b101110) & (i[9:4] != 6'b010001)  // 29
+           & (i[9:4] != 6'b011110) & (i[9:4] != 6'b100001)  // 30
+           & (i[9:4] != 6'b001111) & (i[9:4] != 6'b110000)  // K28
+           & (i[9:4] != 6'b110100)  // 11
+           & (i[9:4] != 6'b101100)  // 13
+           & (i[9:4] != 6'b011100)  // 14
+           & (i[9:4] != 6'b100011)  // 17
+           & (i[9:4] != 6'b010011)  // 18
+           & (i[9:4] != 6'b001011)  // 20
+         )
+      begin
+        if ((i[3:0] == 4'b0111) | (i[3:0] == 4'b1000))
+        begin
+          invalid[i[9:0]] = 1'b1;  // not a candidate for alternate D7 at all
+        end
+      end
 
-    invalid[10'b111000_0111] = 1'b1;  // negative in  7
-    invalid[10'b000111_1000] = 1'b1;  // positive in  7
+      if (   (i[9:4] == 6'b110000)  // K28
+           | (i[9:4] == 6'b001111)  // K28
+           | (i[9:4] == 6'b110100)  // 11
+           | (i[9:4] == 6'b101100)  // 13
+           | (i[9:4] == 6'b011100)  // 14
+         )
+      begin
+        if (i[3:0] == 4'b0001)  // cant use normal +
+        begin
+          invalid[i[9:0]] = 1'b1;
+        end
+      end
 
-// Get rid of case where LSB has 2 or 4 bits set, and choice of primary
-//   or alternate code makes the other code impossible.
-    invalid[10'b001100_0111] = 1'b1;  // negative  24
-    invalid[10'b110011_1000] = 1'b1;  // positive  24
-    invalid[10'b010100_0111] = 1'b1;  // negative  31
-    invalid[10'b101011_1000] = 1'b1;  // positive  31
-    invalid[10'b101000_0111] = 1'b1;  // negative  15
-    invalid[10'b010111_1000] = 1'b1;  // positive  15
-    invalid[10'b011000_0111] = 1'b1;  // negative  0
-    invalid[10'b100111_1000] = 1'b1;  // positive  0
-    invalid[10'b100100_0111] = 1'b1;  // negative  16
-    invalid[10'b011011_1000] = 1'b1;  // positive  16
-    invalid[10'b001111_0001] = 1'b1;  // positive  K28
-    invalid[10'b110000_1110] = 1'b1;  // negative  K28
+      if (   (i[9:4] == 6'b100011)  // 17
+           | (i[9:4] == 6'b010011)  // 18
+           | (i[9:4] == 6'b001011)  // 20
+         )
+      begin
+        if (i[3:0] == 4'b1000)  // cant use alternate +
+        begin
+          invalid[i[9:0]] = 1'b1;
+        end
+      end
+
+      if (   (i[9:4] == 6'b110000)  // K28
+           | (i[9:4] == 6'b001111)  // K28
+           | (i[9:4] == 6'b100011)  // 17
+           | (i[9:4] == 6'b010011)  // 18
+           | (i[9:4] == 6'b001011)  // 20
+         )
+      begin
+        if (i[3:0] == 4'b1110)  // cant use normal -
+        begin
+          invalid[i[9:0]] = 1'b1;
+        end
+      end
+
+      if (   (i[9:4] == 6'b110100)  // 11
+           | (i[9:4] == 6'b101100)  // 13
+           | (i[9:4] == 6'b011100)  // 14
+         )
+      begin
+        if (i[3:0] == 4'b0111)  // cant use alternate -
+        begin
+          invalid[i[9:0]] = 1'b1;
+        end
+      end
+    end
 
     $display ("LSB is to the left");
     for (i[10:0] = 11'h000; i[10:0] < 11'h400; i[10:0] = i[10:0] + 11'h001)
