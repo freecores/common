@@ -88,11 +88,14 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: ddr_2_dram_for_debugging.v,v 1.5 2001-11-01 12:36:19 bbeaver Exp $
+// $Id: ddr_2_dram_for_debugging.v,v 1.6 2001-11-01 13:24:51 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2001/11/01 13:33:03  Blue Beaver
+// no message
+//
 // Revision 1.7  2001/11/01 12:44:03  Blue Beaver
 // no message
 //
@@ -238,45 +241,69 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
 
   wire   [NUM_DATA_BITS - 1 : 0] DQ_E_out_0;
   wire   [NUM_DATA_BITS - 1 : 0] DQ_O_out_0;
-  wire    DQ_oe_0, DQS_out_0, DQS_oe_0, Timing_Error_0;
+  wire    DQ_E_oe_0, DQS_E_out_0, DQS_E_oe_0, Timing_Error_0;
+  wire    DQ_O_oe_0, DQS_O_out_0, DQS_O_oe_0;
 
   wire   [NUM_DATA_BITS - 1 : 0] DQ_E_out_1;
   wire   [NUM_DATA_BITS - 1 : 0] DQ_O_out_1;
-  wire    DQ_oe_1, DQS_out_1, DQS_oe_1, Timing_Error_1;
+  wire    DQ_E_oe_1, DQS_E_out_1, DQS_E_oe_1, Timing_Error_1;
+  wire    DQ_O_oe_1, DQS_O_out_1, DQS_O_oe_1;
 
   wire   [NUM_DATA_BITS - 1 : 0] DQ_E_out_2;
   wire   [NUM_DATA_BITS - 1 : 0] DQ_O_out_2;
-  wire    DQ_oe_2, DQS_out_2, DQS_oe_2, Timing_Error_2;
+  wire    DQ_E_oe_2, DQS_E_out_2, DQS_E_oe_2, Timing_Error_2;
+  wire    DQ_O_oe_2, DQS_O_out_2, DQS_O_oe_2;
 
   wire   [NUM_DATA_BITS - 1 : 0] DQ_E_out_3;
   wire   [NUM_DATA_BITS - 1 : 0] DQ_O_out_3;
-  wire    DQ_oe_3, DQS_out_3, DQS_oe_3, Timing_Error_3;
+  wire    DQ_E_oe_3, DQS_E_out_3, DQS_E_oe_3, Timing_Error_3;
+  wire    DQ_O_oe_3, DQS_O_out_3, DQS_O_oe_3;
 
-  always @(    DQ_oe_0   or DQ_oe_1   or DQ_oe_2   or DQ_oe_3
-            or DQS_out_0 or DQS_out_1 or DQS_out_2 or DQS_out_3
-            or DQS_oe_0  or DQS_oe_1  or DQS_oe_2  or DQS_oe_3 )
+  always @(    DQ_E_oe_0   or DQ_E_oe_1   or DQ_E_oe_2   or DQ_E_oe_3
+            or DQS_E_out_0 or DQS_E_out_1 or DQS_E_out_2 or DQS_E_out_3
+            or DQS_E_oe_0  or DQS_E_oe_1  or DQS_E_oe_2  or DQS_E_oe_3
+            or DQ_O_oe_0   or DQ_O_oe_1   or DQ_O_oe_2   or DQ_O_oe_3
+            or DQS_O_out_0 or DQS_O_out_1 or DQS_O_out_2 or DQS_O_out_3
+            or DQS_O_oe_0  or DQS_O_oe_1  or DQS_O_oe_2  or DQS_O_oe_3 )
+
   begin
-    if (   (DQ_oe_0 & DQ_oe_1) | (DQ_oe_0 & DQ_oe_2) | (DQ_oe_0 & DQ_oe_3)
-         | (DQ_oe_1 & DQ_oe_2) | (DQ_oe_1 & DQ_oe_3) | (DQ_oe_2 & DQ_oe_3) )
+    if (   (DQ_E_oe_0 & DQ_E_oe_1) | (DQ_E_oe_0 & DQ_E_oe_2) | (DQ_E_oe_0 & DQ_E_oe_3)
+         | (DQ_E_oe_1 & DQ_E_oe_2) | (DQ_E_oe_1 & DQ_E_oe_3) | (DQ_E_oe_2 & DQ_E_oe_3)
+         | (DQ_O_oe_0 & DQ_O_oe_1) | (DQ_O_oe_0 & DQ_O_oe_2) | (DQ_O_oe_0 & DQ_O_oe_3)
+         | (DQ_O_oe_1 & DQ_O_oe_2) | (DQ_O_oe_1 & DQ_O_oe_3) | (DQ_O_oe_2 & DQ_O_oe_3) )
+
     begin
       $display ("*** %m DDR DRAM has multiple banks driving DQ at the same time at %x %t",
-                    {DQ_oe_3, DQ_oe_2, DQ_oe_1, DQ_oe_0}, $time);
+                    {DQ_E_oe_3, DQ_O_oe_3, DQ_E_oe_2, DQ_O_oe_2, DQ_E_oe_1, DQ_O_oe_1, DQ_E_oe_0, DQ_O_oe_0}, $time);
     end
-    if (   ((DQS_oe_0 & DQS_oe_1) & ((DQS_out_0 != 1'b0) | (DQS_out_1 != 1'b0)))
-         | ((DQS_oe_0 & DQS_oe_2) & ((DQS_out_0 != 1'b0) | (DQS_out_2 != 1'b0)))
-         | ((DQS_oe_0 & DQS_oe_3) & ((DQS_out_0 != 1'b0) | (DQS_out_3 != 1'b0)))
-         | ((DQS_oe_1 & DQS_oe_2) & ((DQS_out_1 != 1'b0) | (DQS_out_2 != 1'b0)))
-         | ((DQS_oe_1 & DQS_oe_3) & ((DQS_out_1 != 1'b0) | (DQS_out_3 != 1'b0)))
-         | ((DQS_oe_2 & DQS_oe_3) & ((DQS_out_2 != 1'b0) | (DQS_out_3 != 1'b0))) )
+    if (   ((DQS_E_oe_0 & DQS_E_oe_1) & ((DQS_E_out_0 != 1'b0) | (DQS_E_out_1 != 1'b0)))
+         | ((DQS_E_oe_0 & DQS_E_oe_2) & ((DQS_E_out_0 != 1'b0) | (DQS_E_out_2 != 1'b0)))
+         | ((DQS_E_oe_0 & DQS_E_oe_3) & ((DQS_E_out_0 != 1'b0) | (DQS_E_out_3 != 1'b0)))
+         | ((DQS_E_oe_1 & DQS_E_oe_2) & ((DQS_E_out_1 != 1'b0) | (DQS_E_out_2 != 1'b0)))
+         | ((DQS_E_oe_1 & DQS_E_oe_3) & ((DQS_E_out_1 != 1'b0) | (DQS_E_out_3 != 1'b0)))
+         | ((DQS_E_oe_2 & DQS_E_oe_3) & ((DQS_E_out_2 != 1'b0) | (DQS_E_out_3 != 1'b0))) )
     begin
-      $display ("*** %m DDR DRAM has multiple banks driving DQS at the same time at %x %x %t",
-                    {DQS_oe_3, DQS_oe_2, DQS_oe_1, DQS_oe_0},
-                    {DQS_out_3, DQS_out_2, DQS_out_1, DQS_out_0}, $time);
+      $display ("*** %m DDR DRAM Even has multiple banks driving DQS at the same time at %x %x %t",
+                    {DQS_E_oe_3, DQS_E_oe_2, DQS_E_oe_1, DQS_E_oe_0},
+                    {DQS_E_out_3, DQS_E_out_2, DQS_E_out_1, DQS_E_out_0}, $time);
+    end
+    if (   ((DQS_O_oe_0 & DQS_O_oe_1) & ((DQS_O_out_0 != 1'b0) | (DQS_O_out_1 != 1'b0)))
+         | ((DQS_O_oe_0 & DQS_O_oe_2) & ((DQS_O_out_0 != 1'b0) | (DQS_O_out_2 != 1'b0)))
+         | ((DQS_O_oe_0 & DQS_O_oe_3) & ((DQS_O_out_0 != 1'b0) | (DQS_O_out_3 != 1'b0)))
+         | ((DQS_O_oe_1 & DQS_O_oe_2) & ((DQS_O_out_1 != 1'b0) | (DQS_O_out_2 != 1'b0)))
+         | ((DQS_O_oe_1 & DQS_O_oe_3) & ((DQS_O_out_1 != 1'b0) | (DQS_O_out_3 != 1'b0)))
+         | ((DQS_O_oe_2 & DQS_O_oe_3) & ((DQS_O_out_2 != 1'b0) | (DQS_O_out_3 != 1'b0))) )
+    begin
+      $display ("*** %m DDR DRAM Odd has multiple banks driving DQS at the same time at %x %x %t",
+                    {DQS_O_oe_3, DQS_O_oe_2, DQS_O_oe_1, DQS_O_oe_0},
+                    {DQS_O_out_3, DQS_O_out_2, DQS_O_out_1, DQS_O_out_0}, $time);
     end
   end
 
-  assign  DEBUG_DQ_OE =  DQ_oe_0  | DQ_oe_1  | DQ_oe_2  | DQ_oe_3;
-  assign  DEBUG_DQS_OE = DQS_oe_0 | DQS_oe_1 | DQS_oe_2 | DQS_oe_3;
+  assign  DEBUG_DQ_OE =  DQ_E_oe_0  | DQ_E_oe_1  | DQ_E_oe_2  | DQ_E_oe_3
+                      |  DQ_O_oe_0  | DQ_O_oe_1  | DQ_O_oe_2  | DQ_O_oe_3;
+  assign  DEBUG_DQS_OE = DQS_E_oe_0 | DQS_E_oe_1 | DQS_E_oe_2 | DQS_E_oe_3
+                       | DQS_O_oe_0 | DQS_O_oe_1 | DQS_O_oe_2 | DQS_O_oe_3;
 
 // The top-level code here is responsible for delaying the data as needed
 //   to meet the LATENCY requirement.
@@ -301,9 +328,12 @@ ddr_2_dram_single_bank
   .DQS                        (DQS),
   .DQ_E_out                   (DQ_E_out_0[NUM_DATA_BITS - 1 : 0]),
   .DQ_O_out                   (DQ_O_out_0[NUM_DATA_BITS - 1 : 0]),
-  .DQ_oe                      (DQ_oe_0),
-  .DQS_out                    (DQS_out_0),
-  .DQS_oe                     (DQS_oe_0),
+  .DQ_E_oe                    (DQ_E_oe_0),
+  .DQ_O_oe                    (DQ_O_oe_0),
+  .DQS_E_out                  (DQS_E_out_0),
+  .DQS_O_out                  (DQS_O_out_0),
+  .DQS_E_oe                   (DQS_E_oe_0),
+  .DQS_O_oe                   (DQS_O_oe_0),
   .Timing_Error               (Timing_Error_0),
   .DM                         (DM),
   .A                          (A[12:0]),
@@ -330,9 +360,12 @@ ddr_2_dram_single_bank
   .DQS                        (DQS),
   .DQ_E_out                   (DQ_E_out_1[NUM_DATA_BITS - 1 : 0]),
   .DQ_O_out                   (DQ_O_out_1[NUM_DATA_BITS - 1 : 0]),
-  .DQ_oe                      (DQ_oe_1),
-  .DQS_out                    (DQS_out_1),
-  .DQS_oe                     (DQS_oe_1),
+  .DQ_E_oe                    (DQ_E_oe_1),
+  .DQ_O_oe                    (DQ_O_oe_1),
+  .DQS_E_out                  (DQS_E_out_1),
+  .DQS_O_out                  (DQS_O_out_1),
+  .DQS_E_oe                   (DQS_E_oe_1),
+  .DQS_O_oe                   (DQS_O_oe_1),
   .Timing_Error               (Timing_Error_1),
   .DM                         (DM),
   .A                          (A[12:0]),
@@ -359,9 +392,12 @@ ddr_2_dram_single_bank
   .DQS                        (DQS),
   .DQ_E_out                   (DQ_E_out_2[NUM_DATA_BITS - 1 : 0]),
   .DQ_O_out                   (DQ_O_out_2[NUM_DATA_BITS - 1 : 0]),
-  .DQ_oe                      (DQ_oe_2),
-  .DQS_out                    (DQS_out_2),
-  .DQS_oe                     (DQS_oe_2),
+  .DQ_E_oe                    (DQ_E_oe_2),
+  .DQ_O_oe                    (DQ_O_oe_2),
+  .DQS_E_out                  (DQS_E_out_2),
+  .DQS_O_out                  (DQS_O_out_2),
+  .DQS_E_oe                   (DQS_E_oe_2),
+  .DQS_O_oe                   (DQS_O_oe_2),
   .Timing_Error               (Timing_Error_2),
   .DM                         (DM),
   .A                          (A[12:0]),
@@ -388,9 +424,12 @@ ddr_2_dram_single_bank
   .DQS                        (DQS),
   .DQ_E_out                   (DQ_E_out_3[NUM_DATA_BITS - 1 : 0]),
   .DQ_O_out                   (DQ_O_out_3[NUM_DATA_BITS - 1 : 0]),
-  .DQ_oe                      (DQ_oe_3),
-  .DQS_out                    (DQS_out_3),
-  .DQS_oe                     (DQS_oe_3),
+  .DQ_E_oe                    (DQ_E_oe_3),
+  .DQ_O_oe                    (DQ_O_oe_3),
+  .DQS_E_out                  (DQS_E_out_3),
+  .DQS_O_out                  (DQS_O_out_3),
+  .DQS_E_oe                   (DQS_E_oe_3),
+  .DQS_O_oe                   (DQS_O_oe_3),
   .Timing_Error               (Timing_Error_3),
   .DM                         (DM),
   .A                          (A[12:0]),
@@ -409,8 +448,8 @@ endmodule
 
 module ddr_2_dram_single_bank (
   DQ, DQS,
-  DQ_E_out, DQ_O_out, DQ_oe,
-  DQS_out, DQS_oe,
+  DQ_E_out, DQ_O_out, DQ_E_oe, DQ_O_oe,
+  DQS_E_out, DQS_O_out, DQS_E_oe, DQS_O_oe,
   Timing_Error,
   DM,
   A, BA,
@@ -424,7 +463,6 @@ module ddr_2_dram_single_bank (
 );
 
 // Constant Parameters
-// Constant Parameters
 parameter FREQUENCY = 133.0;  // might be 100, 125, 166, any other frequency
 parameter LATENCY = 2.0;  // might be 2.0, 2.5, 3.0, 3.5, 4.0, 4.5
 parameter NUM_ADDR_BITS = 13;
@@ -436,8 +474,8 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
   input   DQS;
   output [NUM_DATA_BITS - 1 : 0] DQ_E_out;
   output [NUM_DATA_BITS - 1 : 0] DQ_O_out;
-  output  DQ_oe;
-  output  DQS_out, DQS_oe;
+  output  DQ_E_oe, DQ_O_oe;
+  output  DQS_E_out, DQS_O_out, DQS_E_oe, DQS_O_oe;
   output  Timing_Error;
   input   DM;
   input  [NUM_ADDR_BITS - 1 : 0] A;
@@ -449,6 +487,81 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
   input   CKE;
   input   CLK_P, CLK_N;
   input  [1:0] bank_num;
+
+// This simple-minded DRAM assumes that all transactions are valid.
+// Therefore, it always gathers RAS and CAS address information, even
+//   if there is an obvious protocol violation.
+
+  reg    [NUM_ADDR_BITS - 1 : 0] Captured_RAS_Address;
+  reg    [1:0] Captured_RAS_Bank_Selects;
+
+  reg    [NUM_ADDR_BITS - 1 : 0] Captured_CAS_Address;
+  reg    [1:0] Captured_CAS_Bank_Selects;
+
+
+// This debugging DRAM requires that entire 4-word bursts be done.
+// At present, this design does not implement DM masking.
+// This debugging DRAM captures data using the DQS signals.  It
+//   immediately moves the data into the CLK_P positive edge clock domain.
+
+  reg    [NUM_DATA_BITS - 1 : 0] DQS_Captured_Write_Data_Even;
+  reg    [NUM_DATA_BITS - 1 : 0] DQS_Captured_Write_Data_Odd;
+  reg     DQS_Captured_Write_DM_Even, DQS_Captured_Write_DM_Odd;
+  reg    [NUM_DATA_BITS - 1 : 0] Delay_Write_Data_Even;
+  reg    [NUM_DATA_BITS - 1 : 0] Sync_Write_Data_Even;
+  reg    [NUM_DATA_BITS - 1 : 0] Sync_Write_Data_Odd;
+  reg     Delay_Write_DM_Even, Sync_Write_DM_Even, Sync_Write_DM_Odd;
+
+// Capture data on rising edge of DQS
+  always @(posedge DQS)
+  begin
+    DQS_Captured_Write_Data_Even[NUM_DATA_BITS - 1 : 0] <= DQ[NUM_DATA_BITS - 1 : 0];
+    DQS_Captured_Write_DM_Even <= DM;
+  end
+
+// Capture data on falling edge of DQS
+  always @(negedge DQS)
+  begin
+    DQS_Captured_Write_Data_Odd[NUM_DATA_BITS - 1 : 0] <= DQ[NUM_DATA_BITS - 1 : 0];
+    DQS_Captured_Write_DM_Odd <= DM;
+  end
+
+// Delay data captured on rising edge so that it can be captured the NEXT rising edge
+  always @(negedge CLK_P)
+  begin
+    Delay_Write_Data_Even[NUM_DATA_BITS - 1 : 0] <=
+                DQS_Captured_Write_Data_Even[NUM_DATA_BITS - 1 : 0];
+    Delay_Write_DM_Even <= DQS_Captured_Write_DM_Even;
+  end
+
+// Capture a data item pair into the positive edge clock domain.
+  always @(posedge CLK_P)
+  begin
+    Sync_Write_Data_Even[NUM_DATA_BITS - 1 : 0] <=
+                Delay_Write_Data_Even[NUM_DATA_BITS - 1 : 0];
+    Sync_Write_Data_Odd[NUM_DATA_BITS - 1 : 0] <=
+                Delay_Write_Data_Odd[NUM_DATA_BITS - 1 : 0];
+    Sync_Write_DM_Even <= Delay_Write_DM_Even;
+    Sync_Write_DM_Odd <= DQS_Captured_Write_DM_Odd;
+  end
+
+// Storage
+  wire   [7 : 0] data_out;
+  wire   [7 : 0] data_in;
+  wire   [NUM_ADDR_BITS - 1 : 0] address;
+  wire    read_enable, write_enable;
+
+sram_for_debugging_sync
+# ( NUM_ADDR_BITS,
+    8  // NUM_DATA_BITS
+  ) storage (
+  .data_out                   (data_out[7 : 0]),
+  .data_in                    (data_in[7 : 0]),
+  .address                    (address[NUM_ADDR_BITS - 1 : 0]),
+  .read_enable                (read_enable),
+  .write_enable               (write_enable),
+  .clk                        (CLK_P)
+);
 
 // DDR DRAMs always capture their command on the RISING EDGE of CLK_P;
 // This fake DDR DRAM understands:  Idle, Activate, Read, Write, Automatic Refresh
@@ -1986,27 +2099,6 @@ parameter BANK_STATE_WIDTH = 4;
         end
     endcase
   end
-// Storage
-  wire   [7 : 0] data_out;
-  wire   [7 : 0] data_in;
-  wire   [NUM_ADDR_BITS - 1 : 0] address;
-  wire    read_enable, write_enable;
-
-// NOTE working
-
-sram_for_debugging_sync
-# ( NUM_ADDR_BITS,
-    8  // NUM_DATA_BITS
-  ) storage (
-  .data_out                   (data_out[7 : 0]),
-  .data_in                    (data_in[7 : 0]),
-  .address                    (address[NUM_ADDR_BITS - 1 : 0]),
-  .read_enable                (read_enable),
-  .write_enable               (write_enable),
-  .clk                        (CLK_P)
-);
-
-
 endmodule
 
 `define TEST_DDR_2_DRAM
