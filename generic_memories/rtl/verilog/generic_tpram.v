@@ -61,6 +61,9 @@
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2001/11/07 18:10:21  samg
+// added checks and task in behavioral section
+//
 // Revision 1.7  2001/10/21 17:57:16  lampret
 // Removed params from generic_XX.v. Added translate_off/on in sprs.v and id.v. Removed spr_addr from dc.v and ic.v. Fixed CR+LF.
 //
@@ -79,11 +82,11 @@
 //
 
 // synopsys translate_off
-`include "timescale.v"
+//`include "timescale.v"
 // synopsys translate_on
-`include "defines.v"
+//`include "defines.v"
 
-module generic_tpram_32x32(
+module generic_tpram(
 	// Generic synchronous two-port RAM interface
 	clk_a, rst_a, ce_a, we_a, oe_a, addr_a, di_a, do_a,
 	clk_b, rst_b, ce_b, we_b, oe_b, addr_b, di_b, do_b
@@ -296,7 +299,7 @@ always @(posedge clk_b)
 
 // Task prints range of memory
 // *** Remember that tasks are non reentrant, don't call this task in parallel for multiple instantiations. 
-task ram_print;
+task print_ram;
 input [aw-1:0] start;
 input [aw-1:0] finish;
 integer rnum;

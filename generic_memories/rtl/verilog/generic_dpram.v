@@ -66,6 +66,9 @@
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2001/11/08 19:11:31  samg
+// added valid checks to behvioral model
+//
 // Revision 1.1.1.1  2001/09/14 09:57:10  rherveille
 // Major cleanup.
 // Files are now compliant to Altera & Xilinx memories.
@@ -87,7 +90,7 @@
 //
 //
 
-`include "timescale.v"
+//`include "timescale.v"
 
 //`define VENDOR_FPGA
 //`define VENDOR_XILINX
@@ -323,7 +326,7 @@ module generic_dpram(
 
 	// Task prints range of memory
 	// *** Remember that tasks are non reentrant, don't call this task in parallel for multiple instantiations. 
-	task ram_print;
+	task print_ram;
 	input [aw-1:0] start;
 	input [aw-1:0] finish;
 	integer rnum;

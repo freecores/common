@@ -67,6 +67,9 @@
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2001/11/08 19:32:59  samg
+// corrected output: output not valid if ce low
+//
 // Revision 1.1.1.1  2001/09/14 09:57:09  rherveille
 // Major cleanup.
 // Files are now compliant to Altera & Xilinx memories.
@@ -79,11 +82,11 @@
 //
 //
 
-`include "timescale.v"
+//`include "timescale.v"
 
 //`define VENDOR_XILINX
 //`define VENDOR_ALTERA
-`define VENDOR_FPGA
+//`define VENDOR_FPGA
 
 module generic_spram(
 	// Generic synchronous single-port RAM interface
@@ -291,6 +294,17 @@ module generic_spram(
 		if (ce && we)
 			mem[addr] <= #1 di;
 
+	// Task prints range of memory
+	// *** Remember that tasks are non reentrant, don't call this task in parallel for multiple instantiations. 
+	task print_ram;
+	input [aw-1:0] start;
+	input [aw-1:0] finish;
+	integer rnum;
+  	begin
+    		for (rnum=start;rnum<=finish;rnum=rnum+1)
+      			$display("Addr %h = %h",rnum,mem[rnum]);
+  	end
+	endtask
 
 `endif // !VIRTUALSILICON_SSP
 `endif // !VIRAGE_SSP
