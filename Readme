@@ -40,5 +40,10 @@
 //      the FIFO doesn't overflow.
 //    This file instantiates the synchronizer_flop mentioned above.
 //
+//  "hamming_ecc_64.v" is an example of how to use 8 bits of redundant data to
+//      correct single-bit errors and detect double-bit errors in 64 bits of data.
+//    There are probably better ways to reorder the terms to reduce loads, and
+//      to change the formulas to detect a larger percentage of likely errors.
+//
 
 

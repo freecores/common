@@ -41,7 +41,7 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: plesiochronous_fifo.v,v 1.1 2001-09-03 12:46:51 bbeaver Exp $
+// $Id: plesiochronous_fifo.v,v 1.2 2001-09-03 13:18:30 bbeaver Exp $
 //
 // CVS Revision History
 //
