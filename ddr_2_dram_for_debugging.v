@@ -88,11 +88,17 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: ddr_2_dram_for_debugging.v,v 1.2 2001-10-29 13:37:57 bbeaver Exp $
+// $Id: ddr_2_dram_for_debugging.v,v 1.3 2001-10-30 12:36:07 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2001/10/30 12:44:03  Blue Beaver
+// no message
+//
+// Revision 1.2  2001/10/30 08:56:18  Blue Beaver
+// no message
+//
 // Revision 1.1  2001/10/29 13:45:02  Blue Beaver
 // no message
 //
@@ -142,6 +148,9 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
   input   CS_L;
   input   CKE;
   input   CLK_P, CLK_N;
+
+// These signals can be accessed by upper scopes to detect chip-to-chip OE conflicts.
+  wire    DEBUG_DQ_OE, DEBUG_DQS_OE;
 
 // Try to measure the input clock, to correctly apply X's on
 //   the data wires near when the outputs change.
@@ -222,17 +231,26 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
 
   wire    force_x = (data_delay1 == data_delay2);
 
-  wire   [NUM_DATA_BITS - 1 : 0] DQ_out_0;
-  wire    DQ_oe_0, DQS_out_0, DQS_oe_0;
+// Watch for cases where both banks are driving the Data bus at once.
+// Normally, the second read would terminate the first read.  This
+//   module, since it is only for debugging, only understands complete
+//   4-word burst transfers.
 
-  wire   [NUM_DATA_BITS - 1 : 0] DQ_out_1;
-  wire    DQ_oe_1, DQS_out_1, DQS_oe_1;
+  wire   [NUM_DATA_BITS - 1 : 0] DQ_E_out_0;
+  wire   [NUM_DATA_BITS - 1 : 0] DQ_O_out_0;
+  wire    DQ_oe_0, DQS_out_0, DQS_oe_0, Timing_Error_0;
 
-  wire   [NUM_DATA_BITS - 1 : 0] DQ_out_2;
-  wire    DQ_oe_2, DQS_out_2, DQS_oe_2;
+  wire   [NUM_DATA_BITS - 1 : 0] DQ_E_out_1;
+  wire   [NUM_DATA_BITS - 1 : 0] DQ_O_out_1;
+  wire    DQ_oe_1, DQS_out_1, DQS_oe_1, Timing_Error_1;
 
-  wire   [NUM_DATA_BITS - 1 : 0] DQ_out_3;
-  wire    DQ_oe_3, DQS_out_3, DQS_oe_3;
+  wire   [NUM_DATA_BITS - 1 : 0] DQ_E_out_2;
+  wire   [NUM_DATA_BITS - 1 : 0] DQ_O_out_2;
+  wire    DQ_oe_2, DQS_out_2, DQS_oe_2, Timing_Error_2;
+
+  wire   [NUM_DATA_BITS - 1 : 0] DQ_E_out_3;
+  wire   [NUM_DATA_BITS - 1 : 0] DQ_O_out_3;
+  wire    DQ_oe_3, DQS_out_3, DQS_oe_3, Timing_Error_3;
 
   always @(    DQ_oe_0   or DQ_oe_1   or DQ_oe_2   or DQ_oe_3
             or DQS_out_0 or DQS_out_1 or DQS_out_2 or DQS_out_3
@@ -244,19 +262,27 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
       $display ("*** %m DDR DRAM has multiple banks driving DQ at the same time at %x %t",
                     {DQ_oe_3, DQ_oe_2, DQ_oe_1, DQ_oe_0}, $time);
     end
-    if (   ((DQS_oe_0 & DQS_oe_1) & (DQS_out_0 != DQS_out_1))
-         | ((DQS_oe_0 & DQS_oe_2) & (DQS_out_0 != DQS_out_2))
-         | ((DQS_oe_0 & DQS_oe_3) & (DQS_out_0 != DQS_out_3))
-         | ((DQS_oe_1 & DQS_oe_2) & (DQS_out_1 != DQS_out_2))
-         | ((DQS_oe_1 & DQS_oe_3) & (DQS_out_1 != DQS_out_3))
-         | ((DQS_oe_2 & DQS_oe_3) & (DQS_out_2 != DQS_out_3)) )
+    if (   ((DQS_oe_0 & DQS_oe_1) & ((DQS_out_0 != 1'b0) | (DQS_out_1 != 1'b0)))
+         | ((DQS_oe_0 & DQS_oe_2) & ((DQS_out_0 != 1'b0) | (DQS_out_2 != 1'b0)))
+         | ((DQS_oe_0 & DQS_oe_3) & ((DQS_out_0 != 1'b0) | (DQS_out_3 != 1'b0)))
+         | ((DQS_oe_1 & DQS_oe_2) & ((DQS_out_1 != 1'b0) | (DQS_out_2 != 1'b0)))
+         | ((DQS_oe_1 & DQS_oe_3) & ((DQS_out_1 != 1'b0) | (DQS_out_3 != 1'b0)))
+         | ((DQS_oe_2 & DQS_oe_3) & ((DQS_out_2 != 1'b0) | (DQS_out_3 != 1'b0))) )
     begin
       $display ("*** %m DDR DRAM has multiple banks driving DQS at the same time at %x %x %t",
                     {DQS_oe_3, DQS_oe_2, DQS_oe_1, DQS_oe_0},
                     {DQS_out_3, DQS_out_2, DQS_out_1, DQS_out_0}, $time);
     end
-
   end
+
+  assign  DEBUG_DQ_OE =  DQ_oe_0  | DQ_oe_1  | DQ_oe_2  | DQ_oe_3;
+  assign  DEBUG_DQS_OE = DQS_oe_0 | DQS_oe_1 | DQS_oe_2 | DQS_oe_3;
+
+// The top-level code here is responsible for delaying the data as needed
+//   to meet the LATENCY requirement.
+
+//    LATENCY,
+//parameter LATENCY = 2.0;  // might be 2.0, 2.5, 3.0, 3.5, 4.0
 
   assign  DQ = force_x ? {NUM_DATA_BITS{1'hX}} : {NUM_DATA_BITS{1'h0}};
   assign  DQS = force_x ? 1'hX : 1'h0;
@@ -264,7 +290,6 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
 
 ddr_2_dram_single_bank
 # ( FREQUENCY,
-    LATENCY,
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
@@ -272,10 +297,12 @@ ddr_2_dram_single_bank
   ) ddr_2_dram_single_bank_0 (
   .DQ                         (DQ[NUM_DATA_BITS - 1 : 0]),
   .DQS                        (DQS),
-  .DQ_out                     (DQ_out_0[NUM_DATA_BITS - 1 : 0]),
+  .DQ_E_out                   (DQ_E_out_0[NUM_DATA_BITS - 1 : 0]),
+  .DQ_O_out                   (DQ_O_out_0[NUM_DATA_BITS - 1 : 0]),
   .DQ_oe                      (DQ_oe_0),
   .DQS_out                    (DQS_out_0),
   .DQS_oe                     (DQS_oe_0),
+  .Timing_Error               (Timing_Error_0),
   .DM                         (DM),
   .A                          (A[12:0]),
   .BA                         (BA[1:0]),
@@ -291,7 +318,6 @@ ddr_2_dram_single_bank
 
 ddr_2_dram_single_bank
 # ( FREQUENCY,
-    LATENCY,
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
@@ -299,10 +325,12 @@ ddr_2_dram_single_bank
   ) ddr_2_dram_single_bank_1 (
   .DQ                         (DQ[NUM_DATA_BITS - 1 : 0]),
   .DQS                        (DQS),
-  .DQ_out                     (DQ_out_1[NUM_DATA_BITS - 1 : 0]),
+  .DQ_E_out                   (DQ_E_out_1[NUM_DATA_BITS - 1 : 0]),
+  .DQ_O_out                   (DQ_O_out_1[NUM_DATA_BITS - 1 : 0]),
   .DQ_oe                      (DQ_oe_1),
   .DQS_out                    (DQS_out_1),
   .DQS_oe                     (DQS_oe_1),
+  .Timing_Error               (Timing_Error_1),
   .DM                         (DM),
   .A                          (A[12:0]),
   .BA                         (BA[1:0]),
@@ -318,7 +346,6 @@ ddr_2_dram_single_bank
 
 ddr_2_dram_single_bank
 # ( FREQUENCY,
-    LATENCY,
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
@@ -326,10 +353,12 @@ ddr_2_dram_single_bank
   ) ddr_2_dram_single_bank_2 (
   .DQ                         (DQ[NUM_DATA_BITS - 1 : 0]),
   .DQS                        (DQS),
-  .DQ_out                     (DQ_out_2[NUM_DATA_BITS - 1 : 0]),
+  .DQ_E_out                   (DQ_E_out_2[NUM_DATA_BITS - 1 : 0]),
+  .DQ_O_out                   (DQ_O_out_2[NUM_DATA_BITS - 1 : 0]),
   .DQ_oe                      (DQ_oe_2),
   .DQS_out                    (DQS_out_2),
   .DQS_oe                     (DQS_oe_2),
+  .Timing_Error               (Timing_Error_2),
   .DM                         (DM),
   .A                          (A[12:0]),
   .BA                         (BA[1:0]),
@@ -345,7 +374,6 @@ ddr_2_dram_single_bank
 
 ddr_2_dram_single_bank
 # ( FREQUENCY,
-    LATENCY,
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
@@ -353,10 +381,12 @@ ddr_2_dram_single_bank
   ) ddr_2_dram_single_bank_3 (
   .DQ                         (DQ[NUM_DATA_BITS - 1 : 0]),
   .DQS                        (DQS),
-  .DQ_out                     (DQ_out_3[NUM_DATA_BITS - 1 : 0]),
+  .DQ_E_out                   (DQ_E_out_3[NUM_DATA_BITS - 1 : 0]),
+  .DQ_O_out                   (DQ_O_out_3[NUM_DATA_BITS - 1 : 0]),
   .DQ_oe                      (DQ_oe_3),
   .DQS_out                    (DQS_out_3),
   .DQS_oe                     (DQS_oe_3),
+  .Timing_Error               (Timing_Error_3),
   .DM                         (DM),
   .A                          (A[12:0]),
   .BA                         (BA[1:0]),
@@ -374,8 +404,9 @@ endmodule
 
 module ddr_2_dram_single_bank (
   DQ, DQS,
-  DQ_out, DQ_oe,
+  DQ_E_out, DQ_O_out, DQ_oe,
   DQS_out, DQS_oe,
+  Timing_Error,
   DM,
   A, BA,
   RAS_L,
@@ -390,7 +421,6 @@ module ddr_2_dram_single_bank (
 // Constant Parameters
 // Constant Parameters
 parameter FREQUENCY = 133.0;  // might be 100, 125, 166, any other frequency
-parameter LATENCY = 2.0;  // might be 2.0, 2.5, 3.0, 3.5, 4.0
 parameter NUM_ADDR_BITS = 13;
 parameter NUM_COL_BITS  = 11;
 parameter NUM_DATA_BITS =  4;
@@ -398,9 +428,11 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
 
   input  [NUM_DATA_BITS - 1 : 0] DQ;
   input   DQS;
-  output [NUM_DATA_BITS - 1 : 0] DQ_out;
+  output [NUM_DATA_BITS - 1 : 0] DQ_E_out;
+  output [NUM_DATA_BITS - 1 : 0] DQ_O_out;
   output  DQ_oe;
   output  DQS_out, DQS_oe;
+  output  Timing_Error;
   input   DM;
   input  [NUM_ADDR_BITS - 1 : 0] A;
   input  [1 : 0] BA;
@@ -411,9 +443,6 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
   input   CKE;
   input   CLK_P, CLK_N;
   input  [1:0] bank_num;
-
-// Storage
-  reg    [NUM_DATA_BITS - 1 : 0] bank0 [0 : NUM_WORDS_IN_TEST_MEMORY - 1];
 
 // DDR DRAMs always capture their command on the RISING EDGE of CLK_P;
 // This fake DDR DRAM understands:  Idle, Activate, Read, Write, Automatic Refresh
@@ -440,46 +469,56 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
 //     1    0     0      0     0      LOAD MODE REGISTER
 //     1    0     1      1     0      not used?
 
-parameter NOOP      = 5'h17;
-parameter ACTIVATE  = 5'h13;
-parameter READ      = 5'h15;
-parameter WRITE     = 5'h14;
-parameter PRECHARGE = 5'h12;
-parameter REFRESH   = 5'h11;
-parameter LOAD_MODE = 5'h10;
+parameter NOOP           = 5'h17;
+parameter LOAD_MODE      = 5'h10;
+parameter ACTIVATE_BANK  = 5'h13;
+parameter READ_BANK      = 5'h15;
+parameter WRITE_BANK     = 5'h14;
+parameter PRECHARGE_BANK = 5'h12;
+parameter REFRESH_BANK   = 5'h11;
 
   wire   [4:0] control_wires = {CKE, CS_L, RAS_L, CAS_L, WE_L};
 
 // These are the important DDR DRAM timing specs in nanoseconds:
-parameter load_mode_register_cycle_TMRD =   15.0;  // stay idle after load mode
-parameter act_to_refresh_TRC =              65.0;
-parameter act_a_to_act_a_TRC =              65.0;  // needed if failover
-parameter act_a_to_act_b_TRRD =             15.0;  // Activate-to-activate minimum time
-parameter act_to_precharge_TRAS =           40.0;
-parameter act_to_read_or_write_TRCD =       20.0;
-parameter write_end_to_precharge_TWR =      15.0;
-parameter precharge_TRP =                   20.0;
-parameter refresh_to_act_TRFC =             75.0;
+parameter LOAD_MODE_REGISTER_PERIOD_TMRD   = 15.0;  // stay idle after load mode
+parameter ACK_A_TO_ACK_B_TRRD              = 15.0;  // Activate-to-activate minimum time
+parameter ACK_TO_READ_OR_WRITE_TRCD        = 20.0;
+parameter ACK_TO_PRECHARGE_TRAS            = 40.0;
+parameter ACK_TO_REFRESH_TRC               = 65.0;
+parameter ACK_A_TO_ACK_A_TRC               = 65.0;  // needed if failover
+parameter WRITE_RECOVERY_TO_PRECHARGE_TWR  = 15.0;
+parameter PRECHARGE_PERIOD_TRP             = 20.0;
+parameter REFRESH_PERIOD_TRFC              = 75.0;
+
+parameter CLOCK_PERIOD = (1.0 / FREQUENCY);
 
 // These timing requirements become CYCLE requirements, depending on the
 //   operating frequency.  Note that 133.333 MHz = 7.5 nSec;
-parameter load_mode_cycles              =     (FREQUENCY > 133.334) ? 2'h3 : 2'h2;
-parameter act_to_refresh_cycles         =     (FREQUENCY > 123.075) ? 4'h9
-                                           : ((FREQUENCY > 107.690) ? 4'h8
-                                           : ((FREQUENCY >  92.300) ? 4'h7 : 4'h6));
-parameter act_a_to_ack_a_cycles         =     (FREQUENCY > 123.075) ? 4'h9
-                                           : ((FREQUENCY > 107.690) ? 4'h8
-                                           : ((FREQUENCY >  92.300) ? 4'h7 : 4'h6));
-parameter ack_a_to_ack_b_cycles         =     (FREQUENCY > 133.334) ? 2'h3 : 2'h2;
-parameter ack_to_precharge_cycles       =     (FREQUENCY > 125.000) ? 4'h6
-                                           : ((FREQUENCY > 100.000) ? 4'h5 : 4'h4);
-parameter ack_to_read_or_write_cycles   =     (FREQUENCY > 100.000) ? 2'h3 : 2'h2;
-parameter write_end_to_precharge_cycles =     (FREQUENCY > 133.334) ? 2'h3 : 2'h2;
-parameter precharge_cycles              =     (FREQUENCY > 100.000) ? 2'h3 : 2'h2;
-parameter refresh_to_ack_cycles         =     (FREQUENCY > 133.334) ? 4'hB
-                                           : ((FREQUENCY > 120.000) ? 4'hA
-                                           : ((FREQUENCY > 106.667) ? 4'h9
-                                           : ((FREQUENCY >  93.330) ? 4'h8 : 4'h7)));
+// These calculations assume that 133 MHz is the fastest this circuit will run.
+// These are calculated by doing (N * 1/period) for N big enough to result in > 85 MHz.
+// Each 1/period gives a frequency to test for, and each N gives the cycle count.
+// Example:  20 nSec gives N * 50 MHz.  So for N == 2, that gives 100 MHz > 85 MHz.
+//           If FREQUENCY > 100 MHz, use N = 2, else use N = 1;
+// The cycle count is the number of cycles to HOLD OFF doing the next command.
+// p.s. Note I don't know how to take the integer part of something in verilog!
+
+parameter LOAD_MODE_REGISTER_CYCLES          =  (FREQUENCY > 133.334) ? 2 : 1;
+parameter ACK_A_TO_ACK_B_CYCLES              =  (FREQUENCY > 133.334) ? 2 : 1;
+parameter ACK_TO_READ_OR_WRITE_CYCLES        =  (FREQUENCY > 100.000) ? 2 : 1;
+parameter ACK_TO_PRECHARGE_CYCLES            =  (FREQUENCY > 125.000) ? 5
+                                             : ((FREQUENCY > 100.000) ? 4 : 3);
+parameter ACK_TO_REFRESH_CYCLES              =  (FREQUENCY > 123.075) ? 8
+                                             : ((FREQUENCY > 107.690) ? 7
+                                             : ((FREQUENCY >  92.300) ? 6 : 5));
+parameter ACK_A_TO_ACK_A_CYCLES              =  (FREQUENCY > 123.075) ? 8
+                                             : ((FREQUENCY > 107.690) ? 7
+                                             : ((FREQUENCY >  92.300) ? 6 : 5));
+parameter WRITE_RECOVERY_TO_PRECHARGE_CYCLES =  (FREQUENCY > 133.334) ? 2 : 1;
+parameter PRECHARGE_CYCLES                   =  (FREQUENCY > 100.000) ? 2 : 1;
+parameter REFRESH_CYCLES                     =  (FREQUENCY > 133.334) ? 10
+                                             : ((FREQUENCY > 120.000) ? 9
+                                             : ((FREQUENCY > 106.667) ? 8
+                                             : ((FREQUENCY >  93.330) ? 7 : 6)));
 
 // The DDR-II DRAM has 4 banks.  Each bank can operate independently, with
 //   only a few exceptions.
@@ -491,202 +530,476 @@ parameter refresh_to_ack_cycles         =     (FREQUENCY > 133.334) ? 4'hB
 // 4) prevent (or notice) precharge too soon after activate
 // 5) count out autorefresh delay
 
-parameter POWER_ON               = 6'h00;
-parameter BANK_IDLE_M2           = 6'h01;
-parameter BANK_IDLE_M1           = 6'h02;
-parameter BANK_IDLE              = 6'h03;
-parameter BANK_ACTIVE_M2         = 6'h04;
-parameter BANK_ACTIVE_M1         = 6'h05;
-parameter BANK_ACTIVE            = 6'h06;
-parameter BANK_READ_0            = 6'h07;
-parameter BANK_READ_1            = 6'h08;
-parameter BANK_READ_2            = 6'h09;
-parameter BANK_READ              = 6'h0A;
-parameter BANK_WRITE_0           = 6'h0B;
-parameter BANK_WRITE_1           = 6'h0C;
-parameter BANK_WRITE_2           = 6'h0D;
-parameter BANK_WRITE             = 6'h0E;
-parameter BANK_WRITE_p_0         = 6'h0F;
-parameter BANK_WRITE_p_1         = 6'h10;
-parameter BANK_WRITE_p_2         = 6'h11;
+  reg    [3:0] load_mode_counter;
+  reg    [3:0] ack_a_to_ack_b_counter;
+  reg    [3:0] ack_to_read_or_write_counter;
+  reg    [3:0] ack_to_precharge_counter;
+  reg    [3:0] ack_to_refresh_counter;  // double use for ack_to_reset and ack_a_to_ack_a
+  reg    [3:0] burst_counter;
+  reg    [3:0] write_recovery_counter;
+  reg    [3:0] precharge_counter;
+  reg    [3:0] refresh_counter;
 
-parameter BANK_REFRESH_M12       = 6'h32;
-parameter BANK_REFRESH_M11       = 6'h33;
-parameter BANK_REFRESH_M10       = 6'h34;
-parameter BANK_REFRESH_M9        = 6'h35;
-parameter BANK_REFRESH_M8        = 6'h36;
-parameter BANK_REFRESH_M7        = 6'h37;
-parameter BANK_REFRESH_M6        = 6'h38;
-parameter BANK_REFRESH_M5        = 6'h39;
-parameter BANK_REFRESH_M4        = 6'h3A;
-parameter BANK_REFRESH_M3        = 6'h3B;
-parameter BANK_REFRESH_M2        = 6'h3C;
-parameter BANK_REFRESH_M1        = 6'h3D;
-parameter BANK_REFRESH           = 6'h3E;
-parameter BANK_ERROR             = 6'h3F;
+parameter POWER_ON                          = 0;
+parameter WRITING_REG                       = 1;
+parameter BANK_IDLE                         = 2;
+parameter ACTIVATING                        = 3;
+parameter WRITING                           = 4;
+parameter WRITING_PRECHARGE                 = 5;
+parameter READING                           = 6;
+parameter READING_PRECHARGE                 = 7;
+parameter PRECHARGING                       = 8;
+parameter REFRESHING                        = 9;
 
-parameter bank_state_width = 6;
+parameter BANK_STATE_WIDTH = 4;
 
-  reg [bank_state_width - 1 : 0] bank_state;
+  reg    [BANK_STATE_WIDTH - 1 : 0] bank_state;
+  reg     Timing_Error;
 
   initial
   begin  // nail state to known at the start of simulation
-    bank_state[bank_state_width - 1 : 0] = POWER_ON;  // nail it to known at the start of simulation
+    bank_state[BANK_STATE_WIDTH - 1 : 0] = POWER_ON;  // nail it to known at the start of simulation
   end
 
   always @(posedge CLK_P)
   begin
-    case (bank_state[bank_state_width - 1 : 0])
+    case (bank_state[BANK_STATE_WIDTH - 1 : 0])
       POWER_ON:
         begin
           if (   (control_wires[4] == 1'b0)      // powered off
                | (control_wires[3] == 1'b1)      // not selected
                | (control_wires[4:0] == NOOP) )  // noop
           begin
-            bank_state[bank_state_width - 1 : 0] <= POWER_ON;
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= POWER_ON;
+            Timing_Error <= 1'b0;
           end
           else if (control_wires[4:0] == LOAD_MODE)  // no bank involved
           begin
-            if (load_mode_cycles == 2'h3)
-              bank_state[bank_state_width - 1 : 0] <= BANK_IDLE_M2;
-            else
-              bank_state[bank_state_width - 1 : 0] <= BANK_IDLE_M1;
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_REG;
+            Timing_Error <= 1'b0;
           end
           else
           begin
             $display ("*** %m DDR DRAM needs to have a LOAD MODE REGISTER before any other command %t", $time);
-            bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= POWER_ON;
+            Timing_Error <= 1'b1;
           end
+          load_mode_counter[3:0]            <= LOAD_MODE_REGISTER_CYCLES;
+          ack_a_to_ack_b_counter[3:0]       <= 4'h0;
+          ack_to_read_or_write_counter[3:0] <= 4'h0;
+          ack_to_precharge_counter[3:0]     <= 4'h0;
+          ack_to_refresh_counter[3:0]       <= 4'h0;
+          burst_counter[3:0]                <= 4'h0;
+          write_recovery_counter[3:0]       <= 4'h0;
+          precharge_counter[3:0]            <= 4'h0;
+          refresh_counter[3:0]              <= 4'h0;
         end
-
-      BANK_IDLE_M2:
+      WRITING_REG:
         begin
-          if (   (control_wires[4] == 1'b0)      // powered off
-               | (control_wires[3] == 1'b1)      // not selected
-               | (control_wires[4:0] == NOOP) )  // noop
+          if (load_mode_counter[3:0] > 4'h1)
           begin
-            bank_state[bank_state_width - 1 : 0] <= BANK_IDLE_M1;
+            if (   (control_wires[4] == 1'b0)      // powered off
+                 | (control_wires[3] == 1'b1)      // not selected
+                 | (control_wires[4:0] == NOOP) )  // noop
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_REG;
+              Timing_Error <= 1'b0;
+            end
+            else
+            begin
+              $display ("*** %m DDR DRAM cannot accept any other command while doing a LOAD MODE REGISTER command %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_REG;
+              Timing_Error <= 1'b1;
+            end
           end
           else
           begin
-            $display ("*** %m DDR DRAM needs to have a NOOP after a LOAD MODE REGISTER command %t", $time);
-            bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+            Timing_Error <= 1'b0;
           end
+          load_mode_counter[3:0]            <= (load_mode_counter[3:0] > 4'h0)
+                                             ? (load_mode_counter[3:0] - 4'h1) : 4'h0;
+          ack_a_to_ack_b_counter[3:0]       <= 4'h0;
+          ack_to_read_or_write_counter[3:0] <= 4'h0;
+          ack_to_precharge_counter[3:0]     <= 4'h0;
+          ack_to_refresh_counter[3:0]       <= 4'h0;
+          burst_counter[3:0]                <= 4'h0;
+          write_recovery_counter[3:0]       <= 4'h0;
+          precharge_counter[3:0]            <= 4'h0;
+          refresh_counter[3:0]              <= 4'h0;
         end
 
-      BANK_IDLE_M1:
-        begin
-          if (   (control_wires[4] == 1'b0)      // powered off
-               | (control_wires[3] == 1'b1)      // not selected
-               | (control_wires[4:0] == NOOP) )  // noop
-          begin
-            bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
-          end
-          else
-          begin
-            $display ("*** %m DDR DRAM needs to have a NOOP after a LOAD MODE REGISTER command %t", $time);
-            bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
-          end
-        end
-
+// All interesting work starts here, except for read, write followed by read, write, precharge
       BANK_IDLE:
         begin
           if (   (control_wires[4] == 1'b0)      // powered off
                | (control_wires[3] == 1'b1)      // not selected
                | (control_wires[4:0] == NOOP) )  // noop
           begin
-            bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
-          end
-          else if ((control_wires[4:0] == ACTIVATE) & (BA[1:0] != bank_num[1:0]))
-          begin
-            bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
-          end
-          else if ((control_wires[4:0] == ACTIVATE) & (BA[1:0] == bank_num[1:0]))
-          begin
-            if (ack_to_read_or_write_cycles == 2'h3)
-              bank_state[bank_state_width - 1 : 0] <= BANK_ACTIVE_M2;
-            else
-              bank_state[bank_state_width - 1 : 0] <= BANK_ACTIVE_M1;
-          end
-          else if (control_wires[4:0] == REFRESH)
-          begin
-            bank_state[bank_state_width - 1 : 0] <= BANK_REFRESH_M2;
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+            Timing_Error <= 1'b0;
+            ack_a_to_ack_b_counter[3:0]       <= 4'h0;
+            ack_to_read_or_write_counter[3:0] <= 4'h0;
+            ack_to_precharge_counter[3:0] <=     (ack_to_precharge_counter[3:0] > 4'h0)
+                                             ? (ack_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+            ack_to_refresh_counter[3:0] <=       (ack_to_refresh_counter[3:0] > 4'h0)
+                                             ? (ack_to_refresh_counter[3:0] - 4'h1) : 4'h0;
           end
           else if (control_wires[4:0] == LOAD_MODE)  // no bank involved
           begin
-            if (load_mode_cycles == 2'h3)
-              bank_state[bank_state_width - 1 : 0] <= BANK_IDLE_M2;
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_REG;
+            Timing_Error <= 1'b0;
+            ack_a_to_ack_b_counter[3:0]       <= 4'h0;
+            ack_to_read_or_write_counter[3:0] <= 4'h0;
+            ack_to_precharge_counter[3:0]     <= 4'h0;
+            ack_to_refresh_counter[3:0]       <= 4'h0;
+          end
+          else if (control_wires[4:0] == ACTIVATE_BANK)  // activate only if this bank is addressed
+          begin
+            if (BA[1:0] == bank_num[1:0])
+            begin
+              if (ack_to_refresh_counter[3:0] > 4'h1)
+              begin
+                $display ("*** %m DDR DRAM cannot do an ACK too soon after another ACK %t", $time);
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+                Timing_Error <= 1'b1;
+                ack_a_to_ack_b_counter[3:0]       <= 4'h0;
+                ack_to_read_or_write_counter[3:0] <= 4'h0;
+                ack_to_precharge_counter[3:0] <=     (ack_to_precharge_counter[3:0] > 4'h0)
+                                               ? (ack_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+                ack_to_refresh_counter[3:0] <=       (ack_to_refresh_counter[3:0] > 4'h0)
+                                               ? (ack_to_refresh_counter[3:0] - 4'h1) : 4'h0;
+              end
+              else
+              begin
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+                Timing_Error <= 1'b0;
+                ack_a_to_ack_b_counter[3:0]       <= ACK_A_TO_ACK_B_CYCLES;
+                ack_to_read_or_write_counter[3:0] <= ACK_TO_READ_OR_WRITE_CYCLES;
+                ack_to_precharge_counter[3:0]     <= ACK_TO_PRECHARGE_CYCLES;
+                ack_to_refresh_counter[3:0]       <= ACK_TO_REFRESH_CYCLES;
+              end
+            end
             else
-              bank_state[bank_state_width - 1 : 0] <= BANK_IDLE_M1;
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+              Timing_Error <= 1'b0;
+              ack_a_to_ack_b_counter[3:0]       <= 4'h0;
+              ack_to_read_or_write_counter[3:0] <= 4'h0;
+              ack_to_precharge_counter[3:0] <=     (ack_to_precharge_counter[3:0] > 4'h0)
+                                             ? (ack_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+              ack_to_refresh_counter[3:0] <=       (ack_to_refresh_counter[3:0] > 4'h0)
+                                             ? (ack_to_refresh_counter[3:0] - 4'h1) : 4'h0;
+            end
+          end
+          else if (control_wires[4:0] == PRECHARGE_BANK)  // ignore precharges when in idle state
+          begin
+            if (ack_to_precharge_counter[3:0] > 4'h1)
+            begin
+              $display ("*** %m DDR DRAM cannot do an PRECHARGE too soon after ACK %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+              Timing_Error <= 1'b1;
+              ack_a_to_ack_b_counter[3:0]       <= 4'h0;
+              ack_to_read_or_write_counter[3:0] <= 4'h0;
+              ack_to_precharge_counter[3:0] <=     (ack_to_precharge_counter[3:0] > 4'h0)
+                                             ? (ack_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+              ack_to_refresh_counter[3:0] <=       (ack_to_refresh_counter[3:0] > 4'h0)
+                                             ? (ack_to_refresh_counter[3:0] - 4'h1) : 4'h0;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
+              Timing_Error <= 1'b0;
+              ack_a_to_ack_b_counter[3:0]       <= ACK_A_TO_ACK_B_CYCLES;
+              ack_to_read_or_write_counter[3:0] <= ACK_TO_READ_OR_WRITE_CYCLES;
+              ack_to_precharge_counter[3:0]     <= ACK_TO_PRECHARGE_CYCLES;
+              ack_to_refresh_counter[3:0]       <= ACK_TO_REFRESH_CYCLES;
+            end
+          end
+          else if (control_wires[4:0] == REFRESH_BANK)  // all already precharged
+          begin
+            if (ack_to_refresh_counter[3:0] > 4'h1)
+            begin
+              $display ("*** %m DDR DRAM cannot do an REFRESH too soon after ACK %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+              Timing_Error <= 1'b1;
+              ack_a_to_ack_b_counter[3:0]       <= 4'h0;
+              ack_to_read_or_write_counter[3:0] <= 4'h0;
+              ack_to_precharge_counter[3:0] <=     (ack_to_precharge_counter[3:0] > 4'h0)
+                                             ? (ack_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+              ack_to_refresh_counter[3:0] <=       (ack_to_refresh_counter[3:0] > 4'h0)
+                                             ? (ack_to_refresh_counter[3:0] - 4'h1) : 4'h0;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= REFRESHING;
+              Timing_Error <= 1'b0;
+              ack_a_to_ack_b_counter[3:0]       <= ACK_A_TO_ACK_B_CYCLES;
+              ack_to_read_or_write_counter[3:0] <= ACK_TO_READ_OR_WRITE_CYCLES;
+              ack_to_precharge_counter[3:0]     <= ACK_TO_PRECHARGE_CYCLES;
+              ack_to_refresh_counter[3:0]       <= ACK_TO_REFRESH_CYCLES;
+            end
           end
           else
           begin
-            $display ("*** %m DDR DRAM can only do Activate, Refresh, or Load Mode Register from Idle %t", $time);
-            bank_state[bank_state_width - 1 : 0] <= BANK_ERROR;
+            $display ("*** %m DDR DRAM can only do Activate, Refresh, Precharge, or Load Mode Register from Idle %t", $time);
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+            Timing_Error <= 1'b1;
+            ack_a_to_ack_b_counter[3:0]       <= 4'h0;
+            ack_to_read_or_write_counter[3:0] <= 4'h0;
+            ack_to_precharge_counter[3:0] <=     (ack_to_precharge_counter[3:0] > 4'h0)
+                                           ? (ack_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+            ack_to_refresh_counter[3:0] <=       (ack_to_refresh_counter[3:0] > 4'h0)
+                                            ? (ack_to_refresh_counter[3:0] - 4'h1) : 4'h0;
           end
+          load_mode_counter[3:0]            <= LOAD_MODE_REGISTER_CYCLES;
+          burst_counter[3:0]                <= 4'h0;
+          write_recovery_counter[3:0]       <= 4'h0;
+          precharge_counter[3:0]            <= 4'h0;
+          refresh_counter[3:0]              <= REFRESH_CYCLES;
         end
-      BANK_ACTIVE_M2:
+
+      ACTIVATING:
         begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
+          if (   (control_wires[4] == 1'b0)      // powered off
+               | (control_wires[3] == 1'b1)      // not selected
+               | (control_wires[4:0] == NOOP) )  // noop
+          begin
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+            Timing_Error <= 1'b0;
+          end
+          else if (control_wires[4:0] == READ_BANK)  // no bank involved
+          begin
+            if (ack_to_read_or_write_counter[3:0] > 4'h1)
+            begin
+              $display ("*** %m DDR DRAM has to wait from Activate to Read %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+              Timing_Error <= 1'b1;
+            end
+            else
+            begin
+              if (A[10] == 1'b1)
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+              else
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
+              Timing_Error <= 1'b0;
+            end
+          end
+          else if (control_wires[4:0] == WRITE_BANK)  // no bank involved
+          begin
+            if (ack_to_read_or_write_counter[3:0] > 4'h1)
+            begin
+              $display ("*** %m DDR DRAM has to wait from Activate to Write %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+              Timing_Error <= 1'b1;
+            end
+            else
+            begin
+              if (A[10] == 1'b1)
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
+              else
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING;
+              Timing_Error <= 1'b0;
+            end
+          end
+          else if (control_wires[4:0] == PRECHARGE_BANK)  // ignore precharges when in idle state
+          begin
+            if (ack_to_precharge_counter[3:0] > 4'h1)
+            begin
+              $display ("*** %m DDR DRAM has to wait from Activate to Precharge %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+              Timing_Error <= 1'b1;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
+              Timing_Error <= 1'b0;
+            end
+          end
+          else
+          begin
+            $display ("*** %m DDR DRAM can only do Read, Write, or Precharge from Activated %t", $time);
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+            Timing_Error <= 1'b1;
+          end
+          load_mode_counter[3:0]            <= 4'h0;
+          ack_a_to_ack_b_counter[3:0]       <= (ack_a_to_ack_b_counter[3:0] > 4'h0)
+                                             ? (ack_a_to_ack_b_counter[3:0] - 4'h1) : 4'h0;
+          ack_to_read_or_write_counter[3:0] <= (ack_to_read_or_write_counter[3:0] > 4'h0)
+                                             ? (ack_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
+          ack_to_precharge_counter[3:0] <=     (ack_to_precharge_counter[3:0] > 4'h0)
+                                             ? (ack_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+          ack_to_refresh_counter[3:0] <=       (ack_to_refresh_counter[3:0] > 4'h0)
+                                             ? (ack_to_refresh_counter[3:0] - 4'h1) : 4'h0;
+          burst_counter[3:0]                <= 4'h0;
+          write_recovery_counter[3:0]       <= 4'h0;
+          precharge_counter[3:0]            <= PRECHARGE_CYCLES;
+          refresh_counter[3:0]              <= 4'h0;
         end
-      BANK_ACTIVE_M1:
+
+      WRITING:
+        if (burst_counter[3:0] > 4'h1)
         begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
+          if (   (control_wires[4] == 1'b0)      // powered off
+               | (control_wires[3] == 1'b1)      // not selected
+               | (control_wires[4:0] == NOOP) )  // noop
+          begin
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
+            Timing_Error <= 1'b0;
+          end
+          else
+          begin
+            $display ("*** %m DDR DRAM Can't do any command until the Write Burst is done %t", $time);
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+            Timing_Error <= 1'b1;
+          end
+          burst_counter[3:0] <=                (burst_counter[3:0] > 4'h0)
+                                             ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          precharge_counter[3:0] <=            (precharge_counter[3:0] > 4'h0)
+                                             ? (precharge_counter[3:0] - 4'h1) : 4'h0;
         end
-      BANK_ACTIVE:
+        else
         begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
+          if (   (control_wires[4] == 1'b0)      // powered off
+               | (control_wires[3] == 1'b1)      // not selected
+               | (control_wires[4:0] == NOOP) )  // noop
+          begin
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+            Timing_Error <= 1'b0;
+          end
+          else if (control_wires[4:0] == READ_BANK)  // no bank involved
+          begin
+            if (A[10] == 1'b1)
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+            else
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
+            Timing_Error <= 1'b0;
+          end
+          else if (control_wires[4:0] == WRITE_BANK)  // no bank involved
+          begin
+            if (A[10] == 1'b1)
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
+            else
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING;
+            Timing_Error <= 1'b0;
+          end
+          else if (control_wires[4:0] == PRECHARGE_BANK)  // ignore precharges when in idle state
+          begin
+            if (ack_to_precharge_counter[3:0] > 4'h1)
+            begin
+              $display ("*** %m DDR DRAM has to wait from Activate to Precharge %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+              Timing_Error <= 1'b1;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
+              Timing_Error <= 1'b0;
+            end
+            burst_counter[3:0] <=                4'h2;
+            precharge_counter[3:0] <=            PRECHARGE_CYCLES;
+          end
+          else
+          begin
+            $display ("*** %m DDR DRAM can only do Read, Write, or Precharge from Write %t", $time);
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+            Timing_Error <= 1'b1;
+            burst_counter[3:0] <=                4'h2;
+            precharge_counter[3:0] <=            PRECHARGE_CYCLES;
+          end
+          load_mode_counter[3:0] <=            (load_mode_counter[3:0] > 4'h0)
+                                             ? (load_mode_counter[3:0] - 4'h1) : 4'h0;
+          ack_a_to_ack_b_counter[3:0] <=       (ack_a_to_ack_b_counter[3:0] > 4'h0)
+                                             ? (ack_a_to_ack_b_counter[3:0] - 4'h1) : 4'h0;
+          ack_to_read_or_write_counter[3:0] <= (ack_to_read_or_write_counter[3:0] > 4'h0)
+                                             ? (ack_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
+          ack_to_precharge_counter[3:0] <=     (ack_to_precharge_counter[3:0] > 4'h0)
+                                             ? (ack_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+          ack_to_refresh_counter[3:0] <=       (ack_to_refresh_counter[3:0] > 4'h0)
+                                             ? (ack_to_refresh_counter[3:0] - 4'h1) : 4'h0;
+          write_recovery_counter[3:0] <=       (write_recovery_counter[3:0] > 4'h0)
+                                             ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
+          refresh_counter[3:0] <=              (refresh_counter[3:0] > 4'h0)
+                                             ? (refresh_counter[3:0] - 4'h1) : 4'h0;
+          load_mode_counter[3:0]            <= LOAD_MODE_REGISTER_CYCLES;
+          ack_a_to_ack_b_counter[3:0]       <= ACK_A_TO_ACK_B_CYCLES;
+          ack_to_read_or_write_counter[3:0] <= ACK_TO_READ_OR_WRITE_CYCLES;
+          ack_to_precharge_counter[3:0]     <= ACK_TO_PRECHARGE_CYCLES;
+          ack_to_refresh_counter[3:0]       <= ACK_TO_REFRESH_CYCLES;
+          burst_counter[3:0]                <= 4'h2;
+          write_recovery_counter[3:0]       <= WRITE_RECOVERY_TO_PRECHARGE_CYCLES;
+          precharge_counter[3:0]            <= PRECHARGE_CYCLES;
+          refresh_counter[3:0]              <= REFRESH_CYCLES;
+
         end
-      BANK_READ_0:
+
+      WRITING_PRECHARGE:
         begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
         end
-      BANK_READ_1:
+
+      READING:
         begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
         end
-      BANK_READ_2:
+
+      READING_PRECHARGE:
         begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
         end
-      BANK_READ:
+
+      PRECHARGING:
         begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
+          load_mode_counter[3:0] <=            (load_mode_counter[3:0] > 4'h0)
+                                             ? (load_mode_counter[3:0] - 4'h1) : 4'h0;
+          ack_a_to_ack_b_counter[3:0] <=       (ack_a_to_ack_b_counter[3:0] > 4'h0)
+                                             ? (ack_a_to_ack_b_counter[3:0] - 4'h1) : 4'h0;
+          ack_to_read_or_write_counter[3:0] <= (ack_to_read_or_write_counter[3:0] > 4'h0)
+                                             ? (ack_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
+          ack_to_precharge_counter[3:0] <=     (ack_to_precharge_counter[3:0] > 4'h0)
+                                             ? (ack_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+          ack_to_refresh_counter[3:0] <=       (ack_to_refresh_counter[3:0] > 4'h0)
+                                             ? (ack_to_refresh_counter[3:0] - 4'h1) : 4'h0;
+          burst_counter[3:0] <=                (burst_counter[3:0] > 4'h0)
+                                             ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          write_recovery_counter[3:0] <=       (write_recovery_counter[3:0] > 4'h0)
+                                             ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
+          precharge_counter[3:0] <=            (precharge_counter[3:0] > 4'h0)
+                                             ? (precharge_counter[3:0] - 4'h1) : 4'h0;
+          refresh_counter[3:0] <=              (refresh_counter[3:0] > 4'h0)
+                                             ? (refresh_counter[3:0] - 4'h1) : 4'h0;
         end
-      BANK_WRITE_0:
+
+      REFRESHING:
         begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
         end
-      BANK_WRITE_1:
-        begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
-        end
-      BANK_WRITE_2:
-        begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
-        end
-      BANK_WRITE:
-        begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
-        end
-      BANK_REFRESH_M2:
-        begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
-        end
-      BANK_REFRESH_M1:
-        begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
-        end
-      BANK_REFRESH:
-        begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_IDLE;
-        end
+
       default:
         begin
-          bank_state[bank_state_width - 1 : 0] <= BANK_ERROR;
+          $display ("*** %m DDR DRAM default jump should be impossible %t", $time);
+          bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+          Timing_Error <= 1'b1;
         end
     endcase
   end
+
+// Storage
+  wire   [7 : 0] data_out;
+  wire   [7 : 0] data_in;
+  wire   [NUM_ADDR_BITS - 1 : 0] address;
+  wire    read_enable, write_enable;
+
+// NOTE working
+
+sram_for_debugging_sync
+# ( NUM_ADDR_BITS,
+    8  // NUM_DATA_BITS
+  ) storage (
+  .data_out                   (data_out[7 : 0]),
+  .data_in                    (data_in[7 : 0]),
+  .address                    (address[NUM_ADDR_BITS - 1 : 0]),
+  .read_enable                (read_enable),
+  .write_enable               (write_enable),
+  .clk                        (CLK_P)
+);
+
 endmodule
 
 `define TEST_DDR_2_DRAM
@@ -806,10 +1119,10 @@ ddr_2_dram
   .CLK_N                      (CLK_N)
 );
 
-  wire   [4:0] BANK_STATE_0 = ddr_2_dram.ddr_2_dram_single_bank_0.bank_state[4:0];
-  wire   [4:0] BANK_STATE_1 = ddr_2_dram.ddr_2_dram_single_bank_1.bank_state[4:0];
-  wire   [4:0] BANK_STATE_2 = ddr_2_dram.ddr_2_dram_single_bank_2.bank_state[4:0];
-  wire   [4:0] BANK_STATE_3 = ddr_2_dram.ddr_2_dram_single_bank_3.bank_state[4:0];
+  wire   [3:0] BANK_STATE_0 = ddr_2_dram.ddr_2_dram_single_bank_0.bank_state[3:0];
+  wire   [3:0] BANK_STATE_1 = ddr_2_dram.ddr_2_dram_single_bank_1.bank_state[3:0];
+  wire   [3:0] BANK_STATE_2 = ddr_2_dram.ddr_2_dram_single_bank_2.bank_state[3:0];
+  wire   [3:0] BANK_STATE_3 = ddr_2_dram.ddr_2_dram_single_bank_3.bank_state[3:0];
 
 endmodule
 `endif  // TEST_DDR_2_DRAM
