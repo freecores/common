@@ -2,6 +2,8 @@
 ////                                                              ////
 //// crc_32_lib, consisting of:                                   ////
 ////   crc_32_64_pipelined_2                                      ////
+////   crc_32_32_pipelined_1                                      ////
+////   crc_32_8_incremental_pipelined_1                           ////
 ////                                                              ////
 //// This file is part of the general opencores effort.           ////
 //// <http://www.opencores.org/cores/misc/>                       ////
@@ -56,11 +58,14 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: crc32_lib.v,v 1.1 2001-09-07 11:30:35 bbeaver Exp $
+// $Id: crc32_lib.v,v 1.2 2001-09-07 11:38:25 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2001/09/07 11:32:02  Blue Beaver
+// no message
+//
 // Revision 1.24  2001/09/07 11:28:49  Blue Beaver
 // no message
 //
