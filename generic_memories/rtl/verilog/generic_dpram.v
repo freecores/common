@@ -66,6 +66,9 @@
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2001/11/09 00:34:18  samg
+// minor changes: unified with all common rams
+//
 // Revision 1.2  2001/11/08 19:11:31  samg
 // added valid checks to behvioral model
 //
@@ -138,20 +141,15 @@ module generic_dpram(
 	// This code has been tested using LeonardoSpectrum and Synplicity.
 	// The code correctly instantiates Altera EABs and Xilinx BlockRAMs.
 	//
-
-	reg [dw-1 :0] mem [(1<<aw) -1:0]; // instantiate memory
-	reg [dw-1:0] do;                  // data output registers
+	reg [dw-1:0] mem [(1<<aw) -1:0]; // instantiate memory
+	reg [aw-1:0] ra;                 // register read address
 
 	// read operation
+	always @(posedge rclk)
+	  if (rce)
+	    ra <= #1 raddr;
 
-	/*
-	always@(posedge rclk)
-		if (rce)                      // clock enable instructs Xilinx tools to use SelectRAM (LUTS) instead of BlockRAM
-			do <= #1 mem[raddr];
-	*/
-
-	always@(posedge rclk)
-		do <= #1 mem[raddr];
+	assign do = mem[ra];
 
 	// write operation
 	always@(posedge wclk)
@@ -305,7 +303,7 @@ module generic_dpram(
 	//
 	// Generic RAM's registers and wires
 	//
-	reg	[dw-1:0]	mem [(1<<aw)-1:0];	// RAM content
+	reg	[dw-1:0]	mem [(1<<aw)-1:0]; // RAM content
 	reg	[dw-1:0]	do_reg;            // RAM data output register
 
 	//
@@ -325,7 +323,7 @@ module generic_dpram(
 
 
 	// Task prints range of memory
-	// *** Remember that tasks are non reentrant, don't call this task in parallel for multiple instantiations. 
+	// *** Remember that tasks are non reentrant, don't call this task in parallel for multiple instantiations.
 	task print_ram;
 	input [aw-1:0] start;
 	input [aw-1:0] finish;
