@@ -88,11 +88,20 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 //
-// $Id: ddr_2_dram_for_debugging.v,v 1.4 2001-10-31 12:21:51 bbeaver Exp $
+// $Id: ddr_2_dram_for_debugging.v,v 1.5 2001-11-01 12:36:19 bbeaver Exp $
 //
 // CVS Revision History
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2001/11/01 12:44:03  Blue Beaver
+// no message
+//
+// Revision 1.6  2001/11/01 11:33:04  Blue Beaver
+// no message
+//
+// Revision 1.5  2001/11/01 09:38:43  Blue Beaver
+// no message
+//
 // Revision 1.4  2001/10/31 12:30:01  Blue Beaver
 // no message
 //
@@ -279,8 +288,10 @@ parameter NUM_WORDS_IN_TEST_MEMORY = 32;
   assign  DQS = force_x ? 1'hX : 1'h0;
 
 
+
 ddr_2_dram_single_bank
 # ( FREQUENCY,
+    LATENCY,
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
@@ -309,6 +320,7 @@ ddr_2_dram_single_bank
 
 ddr_2_dram_single_bank
 # ( FREQUENCY,
+    LATENCY,
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
@@ -337,6 +349,7 @@ ddr_2_dram_single_bank
 
 ddr_2_dram_single_bank
 # ( FREQUENCY,
+    LATENCY,
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
@@ -365,6 +378,7 @@ ddr_2_dram_single_bank
 
 ddr_2_dram_single_bank
 # ( FREQUENCY,
+    LATENCY,
     NUM_ADDR_BITS,
     NUM_COL_BITS,
     NUM_DATA_BITS,
@@ -412,6 +426,7 @@ module ddr_2_dram_single_bank (
 // Constant Parameters
 // Constant Parameters
 parameter FREQUENCY = 133.0;  // might be 100, 125, 166, any other frequency
+parameter LATENCY = 2.0;  // might be 2.0, 2.5, 3.0, 3.5, 4.0, 4.5
 parameter NUM_ADDR_BITS = 13;
 parameter NUM_COL_BITS  = 11;
 parameter NUM_DATA_BITS =  4;
@@ -493,23 +508,27 @@ parameter CLOCK_PERIOD = (1.0 / FREQUENCY);
 // The cycle count is the number of cycles to HOLD OFF doing the next command.
 // p.s. Note I don't know how to take the integer part of something in verilog!
 
-parameter LOAD_MODE_REGISTER_CYCLES          =  (FREQUENCY > 133.334) ? 2 : 1;
-parameter ACT_A_TO_ACT_B_CYCLES              =  (FREQUENCY > 133.334) ? 2 : 1;
-parameter ACT_TO_READ_OR_WRITE_CYCLES        =  (FREQUENCY > 100.000) ? 2 : 1;
-parameter ACT_TO_PRECHARGE_CYCLES            =  (FREQUENCY > 125.000) ? 5
-                                             : ((FREQUENCY > 100.000) ? 4 : 3);
-// parameter ACK_TO_REFRESH_CYCLES              =  (FREQUENCY > 123.075) ? 8
-//                                             : ((FREQUENCY > 107.690) ? 7
-//                                             : ((FREQUENCY >  92.300) ? 6 : 5));
-parameter ACT_A_TO_ACT_A_CYCLES              =  (FREQUENCY > 123.075) ? 8
-                                             : ((FREQUENCY > 107.690) ? 7
-                                             : ((FREQUENCY >  92.300) ? 6 : 5));
-parameter WRITE_RECOVERY_TO_PRECHARGE_CYCLES =  (FREQUENCY > 133.334) ? 2 : 1;
-parameter PRECHARGE_CYCLES                   =  (FREQUENCY > 100.000) ? 2 : 1;
-parameter REFRESH_CYCLES                     =  (FREQUENCY > 133.334) ? 10
-                                             : ((FREQUENCY > 120.000) ? 9
-                                             : ((FREQUENCY > 106.667) ? 8
-                                             : ((FREQUENCY >  93.330) ? 7 : 6)));
+parameter LOAD_MODE_REGISTER_CYCLES          =  (FREQUENCY > 133.334) ? 3 : 2;
+parameter ACT_A_TO_ACT_B_CYCLES              =  (FREQUENCY > 133.334) ? 3 : 2;
+parameter ACT_TO_READ_OR_WRITE_CYCLES        =  (FREQUENCY > 100.000) ? 3 : 2;
+parameter ACT_TO_PRECHARGE_CYCLES            =  (FREQUENCY > 125.000) ? 6
+                                             : ((FREQUENCY > 100.000) ? 5 : 4);
+// parameter ACK_TO_REFRESH_CYCLES              =  (FREQUENCY > 123.075) ? 9
+//                                             : ((FREQUENCY > 107.690) ? 8
+//                                             : ((FREQUENCY >  92.300) ? 7 : 6));
+parameter ACT_A_TO_ACT_A_CYCLES              =  (FREQUENCY > 123.075) ? 9
+                                             : ((FREQUENCY > 107.690) ? 8
+                                             : ((FREQUENCY >  92.300) ? 7 : 6));
+parameter READ_TO_WRITE_CYCLES               =  (LATENCY > 4.0) ? 5
+                                             : ((LATENCY > 3.0) ? 4
+                                             : ((LATENCY > 2.0) ? 3 : 2));
+parameter WRITE_TO_READ_CYCLES               = 2;
+parameter WRITE_RECOVERY_TO_PRECHARGE_CYCLES =  (FREQUENCY > 133.334) ? 3 : 2;
+parameter PRECHARGE_CYCLES                   =  (FREQUENCY > 100.000) ? 3 : 2;
+parameter REFRESH_CYCLES                     =  (FREQUENCY > 133.334) ? 11
+                                             : ((FREQUENCY > 120.000) ? 10
+                                             : ((FREQUENCY > 106.667) ? 9
+                                             : ((FREQUENCY >  93.330) ? 8 : 7)));
 
 // The DDR-II DRAM has 4 banks.  Each bank can operate independently, with
 //   only a few exceptions.
@@ -521,12 +540,14 @@ parameter REFRESH_CYCLES                     =  (FREQUENCY > 133.334) ? 10
 // 4) prevent (or notice) precharge too soon after activate
 // 5) count out autorefresh delay
 
-  reg    [3:0] load_mode_counter;
+  reg    [3:0] load_mode_delay_counter;
   reg    [3:0] act_a_to_act_b_counter;
   reg    [3:0] act_to_read_or_write_counter;
   reg    [3:0] act_to_precharge_counter;
   reg    [3:0] act_a_to_act_a_counter;  // double use for act_to_refresh and act_a_to_act_a
   reg    [3:0] burst_counter;
+  reg    [3:0] read_to_write_counter;
+  reg    [3:0] write_to_read_counter;
   reg    [3:0] write_recovery_counter;
   reg    [3:0] precharge_counter;
   reg    [3:0] refresh_counter;
@@ -541,6 +562,7 @@ parameter READING                           = 6;
 parameter READING_PRECHARGE                 = 7;
 parameter PRECHARGING                       = 8;
 parameter REFRESHING                        = 9;
+parameter WAITING_FOR_AUTO_PRECHARGE       = 10;
 
 parameter BANK_STATE_WIDTH = 4;
 
@@ -575,12 +597,14 @@ parameter BANK_STATE_WIDTH = 4;
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= POWER_ON;
             Timing_Error <= 1'b1;
           end
-          load_mode_counter[3:0]            <= LOAD_MODE_REGISTER_CYCLES;
+          load_mode_delay_counter[3:0]      <= LOAD_MODE_REGISTER_CYCLES;
           act_a_to_act_b_counter[3:0]       <= 4'h0;
           act_to_read_or_write_counter[3:0] <= 4'h0;
           act_to_precharge_counter[3:0]     <= 4'h0;
           act_a_to_act_a_counter[3:0]       <= 4'h0;
           burst_counter[3:0]                <= 4'h0;
+          read_to_write_counter [3:0]       <= 4'h0;
+          write_to_read_counter [3:0]       <= 4'h0;
           write_recovery_counter[3:0]       <= 4'h0;
           precharge_counter[3:0]            <= 4'h0;
           refresh_counter[3:0]              <= 4'h0;
@@ -588,34 +612,45 @@ parameter BANK_STATE_WIDTH = 4;
 
       WRITING_REG:
         begin
-          if (load_mode_counter[3:0] > 4'h1)
+          if (   (control_wires[4] == 1'b0)      // powered off
+               | (control_wires[3] == 1'b1)      // not selected
+               | (control_wires[4:0] == NOOP) )  // noop
           begin
-            if (   (control_wires[4] == 1'b0)      // powered off
-                 | (control_wires[3] == 1'b1)      // not selected
-                 | (control_wires[4:0] == NOOP) )  // noop
+            if (load_mode_delay_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_REG;
               Timing_Error <= 1'b0;
             end
             else
             begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+              Timing_Error <= 1'b0;
+            end
+          end
+          else  // nothing else legal until load mode finished
+          begin
+            if (load_mode_delay_counter[3:0] > 4'h2)  // looping
+            begin
               $display ("*** %m DDR DRAM cannot accept any other command while doing a LOAD MODE REGISTER command %t", $time);
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_REG;
               Timing_Error <= 1'b1;
             end
+            else
+            begin
+              $display ("*** %m DDR DRAM cannot accept any other command while doing a LOAD MODE REGISTER command %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+              Timing_Error <= 1'b1;
+            end
           end
-          else
-          begin
-            bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
-            Timing_Error <= 1'b0;
-          end
-          load_mode_counter[3:0]            <= (load_mode_counter[3:0] > 4'h0)
-                                             ? (load_mode_counter[3:0] - 4'h1) : 4'h0;
+          load_mode_delay_counter[3:0]      <= (load_mode_delay_counter[3:0] != 4'h0)
+                                             ? (load_mode_delay_counter[3:0] - 4'h1) : 4'h0;
           act_a_to_act_b_counter[3:0]       <= 4'h0;
           act_to_read_or_write_counter[3:0] <= 4'h0;
           act_to_precharge_counter[3:0]     <= 4'h0;
           act_a_to_act_a_counter[3:0]       <= 4'h0;
           burst_counter[3:0]                <= 4'h0;
+          read_to_write_counter [3:0]       <= 4'h0;
+          write_to_read_counter [3:0]       <= 4'h0;
           write_recovery_counter[3:0]       <= 4'h0;
           precharge_counter[3:0]            <= 4'h0;
           refresh_counter[3:0]              <= 4'h0;
@@ -630,26 +665,26 @@ parameter BANK_STATE_WIDTH = 4;
           begin
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
             Timing_Error <= 1'b0;
-            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                                ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                                ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
           end
           else if (control_wires[4:0] == LOAD_MODE)  // no bank involved
           begin
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_REG;
             Timing_Error <= 1'b0;
-            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                                ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                                ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
           end
           else if (control_wires[4:0] == ACTIVATE_BANK)  // activate only if this bank is addressed
@@ -661,13 +696,13 @@ parameter BANK_STATE_WIDTH = 4;
                 $display ("*** %m DDR DRAM cannot do an ACT too soon after another ACT to the same bank %t", $time);
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
                 Timing_Error <= 1'b1;
-                act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+                act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                                    ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-                act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+                act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                                    ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-                act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+                act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                                    ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-                act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+                act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                                    ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
               end
               else
@@ -681,16 +716,25 @@ parameter BANK_STATE_WIDTH = 4;
               end
             end
             else  // some other bank
-            begin  // ignore check for act_a to act_b timer, because can't get here early enough
-              bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
-              Timing_Error <= 1'b0;
-              act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+            begin
+              if (act_a_to_act_b_counter[3:0] > 4'h1)
+              begin
+                $display ("*** %m DDR DRAM cannot do an ACT too soon after another ACT to the same bank %t", $time);
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+                Timing_Error <= 1'b1;
+              end
+              else
+              begin
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
+                Timing_Error <= 1'b0;
+              end
+              act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                                  ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-              act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+              act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                                  ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-              act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+              act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                                  ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-              act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+              act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                                  ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
             end
           end
@@ -698,33 +742,33 @@ parameter BANK_STATE_WIDTH = 4;
           begin
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
             Timing_Error <= 1'b0;
-            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                                ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                                ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
           end
           else if ((control_wires[4:0] == WRITE_BANK) & (BA[1:0] != bank_num[1:0]))
           begin
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
             Timing_Error <= 1'b0;
-            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                                ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                                ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
           end
           else if (control_wires[4:0] == PRECHARGE_BANK)
           begin
             if ((BA[1:0] == bank_num[1:0]) | (A[10] == 1'b1))
             begin
-              if (act_a_to_act_a_counter[3:0] > 4'h1)
+              if (act_to_precharge_counter[3:0] > 4'h1)
               begin
                 $display ("*** %m DDR DRAM cannot do an PRECHARGE too soon after ACTIVATE %t", $time);
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
@@ -741,13 +785,13 @@ parameter BANK_STATE_WIDTH = 4;
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
               Timing_Error <= 1'b0;
             end
-            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                                ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                                ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
           end
           else if (control_wires[4:0] == REFRESH_BANK)  // all already precharged
@@ -763,13 +807,13 @@ parameter BANK_STATE_WIDTH = 4;
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= REFRESHING;
               Timing_Error <= 1'b0;
             end
-            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                                ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                                ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
           end
           else
@@ -777,19 +821,23 @@ parameter BANK_STATE_WIDTH = 4;
             $display ("*** %m DDR DRAM can only do Activate, Refresh, Precharge, or Load Mode Register from Idle %t", $time);
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= BANK_IDLE;
             Timing_Error <= 1'b1;
-            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+            act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+            act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                                ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+            act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                                ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+            act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                                ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
           end
-          load_mode_counter[3:0]            <= LOAD_MODE_REGISTER_CYCLES;
+          load_mode_delay_counter[3:0]      <= LOAD_MODE_REGISTER_CYCLES;
           burst_counter[3:0]                <= 4'h0;
-          write_recovery_counter[3:0]       <= 4'h0;
-          precharge_counter[3:0]            <= 4'h0;
+          read_to_write_counter [3:0]       <= 4'h0;
+          write_to_read_counter [3:0]       <= 4'h0;
+          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] != 4'h0)
+                                             ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
+          precharge_counter[3:0]            <= (precharge_counter[3:0] != 4'h0)
+                                             ? (precharge_counter[3:0] - 4'h1) : 4'h0;
           refresh_counter[3:0]              <= REFRESH_CYCLES;
         end
 
@@ -835,6 +883,12 @@ parameter BANK_STATE_WIDTH = 4;
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
                 Timing_Error <= 1'b1;
               end
+              else if (write_to_read_counter[3:0] > 4'h1)
+              begin
+                $display ("*** %m DDR DRAM has to wait from Write to Read %t", $time);
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+                Timing_Error <= 1'b1;
+              end
               else
               begin
                 if (A[10] == 1'b1)
@@ -857,6 +911,12 @@ parameter BANK_STATE_WIDTH = 4;
               if (act_to_read_or_write_counter[3:0] > 4'h1)
               begin
                 $display ("*** %m DDR DRAM has to wait from Activate to Write %t", $time);
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+                Timing_Error <= 1'b1;
+              end
+              else if (read_to_write_counter[3:0] > 4'h1)
+              begin
+                $display ("*** %m DDR DRAM has to wait from Read to Write %t", $time);
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
                 Timing_Error <= 1'b1;
               end
@@ -885,6 +945,12 @@ parameter BANK_STATE_WIDTH = 4;
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
                 Timing_Error <= 1'b1;
               end
+              else if (write_recovery_counter[3:0] > 4'h1)
+              begin
+                $display ("*** %m DDR DRAM has to wait from end of Write to Precharge %t", $time);
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
+                Timing_Error <= 1'b1;
+              end
               else
               begin
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
@@ -903,17 +969,22 @@ parameter BANK_STATE_WIDTH = 4;
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
             Timing_Error <= 1'b1;
           end
-          load_mode_counter[3:0]            <= 4'h0;
-          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+          load_mode_delay_counter[3:0]      <= 4'h0;
+          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                              ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                              ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                              ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                              ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
           burst_counter[3:0]                <= 4'h2;
-          write_recovery_counter[3:0]       <= 4'h0;
+          read_to_write_counter [3:0]       <= (read_to_write_counter[3:0] != 4'h0)
+                                             ? (read_to_write_counter[3:0] - 4'h1) : 4'h0;
+          write_to_read_counter [3:0]       <= (write_to_read_counter[3:0] != 4'h0)
+                                             ? (write_to_read_counter[3:0] - 4'h1) : 4'h0;
+          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] != 4'h0)
+                                             ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
           precharge_counter[3:0]            <= PRECHARGE_CYCLES;
           refresh_counter[3:0]              <= 4'h0;
         end
@@ -934,7 +1005,7 @@ parameter BANK_STATE_WIDTH = 4;
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
               Timing_Error <= 1'b0;
             end
-            burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                                ? (burst_counter[3:0] - 4'h1) : 4'h0;
           end
           else if (control_wires[4:0] == ACTIVATE_BANK)  // activate only if this bank is addressed
@@ -964,46 +1035,52 @@ parameter BANK_STATE_WIDTH = 4;
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
             end
-            burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                                ? (burst_counter[3:0] - 4'h1) : 4'h0;
           end
           else if (control_wires[4:0] == READ_BANK)
           begin
             if (BA[1:0] == bank_num[1:0])
             begin
-              if (A[10] == 1'b1)
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
-              else
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING;
-              Timing_Error <= 1'b0;
-              burst_counter[3:0]                <= 4'h2;
+              $display ("*** %m DDR DRAM cannot do a Read until Write completes plus recovery %t", $time);
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            end
+            if (burst_counter[3:0] > 4'h1)
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
             end
             else
             begin
-              if (burst_counter[3:0] > 4'h1)
-              begin
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
-              end
-              else
-              begin
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
-              end
-              burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
-                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
             end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
           end
           else if (control_wires[4:0] == WRITE_BANK)
           begin
             if (BA[1:0] == bank_num[1:0])
             begin
-              if (A[10] == 1'b1)
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+              if (burst_counter[3:0] > 4'h1)
+              begin
+                $display ("*** %m DDR DRAM cannot do a Write to a bank until the previous Write completes %t", $time);
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;  // might want to go to activate!
+                Timing_Error <= 1'b1;
+                burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                   ? (burst_counter[3:0] - 4'h1) : 4'h0;
+              end
               else
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
-              Timing_Error <= 1'b0;
-              burst_counter[3:0]                <= 4'h2;
+              begin
+                if (A[10] == 1'b1)
+                  bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+                else
+                  bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
+                Timing_Error <= 1'b0;
+                burst_counter[3:0]                <= 4'h2;
+              end
             end
-            else
+            else  // was to a different bank.  We are done
             begin
               if (burst_counter[3:0] > 4'h1)
               begin
@@ -1013,7 +1090,7 @@ parameter BANK_STATE_WIDTH = 4;
               begin
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
               end
-              burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                                  ? (burst_counter[3:0] - 4'h1) : 4'h0;
             end
           end
@@ -1021,30 +1098,20 @@ parameter BANK_STATE_WIDTH = 4;
           begin
             if ((BA[1:0] == bank_num[1:0]) | (A[10] == 1'b1))
             begin
-              if (act_to_precharge_counter[3:0] > 4'h1)
-              begin
-                $display ("*** %m DDR DRAM has to wait during WRITE from Activate to Precharge %t", $time);
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
-                Timing_Error <= 1'b1;
-              end
-              else
-              begin
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
-                Timing_Error <= 1'b0;
-              end
+              $display ("*** %m DDR DRAM cannot do a Precharge until Write completes plus recovery %t", $time);
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            end
+            if (burst_counter[3:0] > 4'h1)
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
             end
             else
             begin
-              if (burst_counter[3:0] > 4'h1)
-              begin
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
-              end
-              else
-              begin
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
-              end
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
             end
-            burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                                ? (burst_counter[3:0] - 4'h1) : 4'h0;
           end
           else
@@ -1052,28 +1119,162 @@ parameter BANK_STATE_WIDTH = 4;
             $display ("*** %m DDR DRAM can only do Read, Write, or Precharge from Write %t", $time);
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
             Timing_Error <= 1'b1;
-            burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
           end
-          load_mode_counter[3:0]            <= (load_mode_counter[3:0] > 4'h0)
-                                             ? (load_mode_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+          load_mode_delay_counter[3:0]      <= 4'h0;
+          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                              ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                              ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                              ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                              ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
-          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] > 4'h0)
-                                             ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
-          refresh_counter[3:0]              <= (refresh_counter[3:0] > 4'h0)
-                                             ? (refresh_counter[3:0] - 4'h1) : 4'h0;
+          read_to_write_counter [3:0]       <= (read_to_write_counter[3:0] != 4'h0)
+                                             ? (read_to_write_counter[3:0] - 4'h1) : 4'h0;
+          write_to_read_counter [3:0]       <= WRITE_TO_READ_CYCLES;
+          write_recovery_counter[3:0]       <= WRITE_RECOVERY_TO_PRECHARGE_CYCLES + 1;  // to let write finish!
           precharge_counter[3:0]            <= PRECHARGE_CYCLES;
+          refresh_counter[3:0]              <= 4'h0;
         end
 
       WRITING_PRECHARGE:
         begin
+          if (   (control_wires[4] == 1'b0)      // powered off
+               | (control_wires[3] == 1'b1)      // not selected
+               | (control_wires[4:0] == NOOP) )  // noop
+          begin
+            if (burst_counter[3:0] > 4'h1)
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+              Timing_Error <= 1'b0;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+              Timing_Error <= 1'b0;
+            end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          else if (control_wires[4:0] == ACTIVATE_BANK)  // activate only if this bank is addressed
+          begin
+            if (BA[1:0] == bank_num[1:0])
+            begin
+              $display ("*** %m DDR DRAM cannot do an Activate to a bank which is being Written %t", $time);
+              Timing_Error <= 1'b1;
+            end
+            else
+            begin
+              if (act_a_to_act_b_counter[3:0] > 4'h1)
+              begin
+                $display ("*** %m DDR DRAM cannot do an Activate to a different bank too soon after this bank is Activated %t", $time);
+                Timing_Error <= 1'b1;
+              end
+              else
+              begin
+                Timing_Error <= 1'b0;
+              end
+            end
+            if (burst_counter[3:0] > 4'h1)
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+            end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          else if (control_wires[4:0] == READ_BANK)
+          begin
+            if (BA[1:0] == bank_num[1:0])
+            begin
+              $display ("*** %m DDR DRAM cannot do a Read until Write_precharge completes precharge %t", $time);
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            end
+            if (burst_counter[3:0] > 4'h1)
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+            end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          else if (control_wires[4:0] == WRITE_BANK)
+          begin
+            if (BA[1:0] == bank_num[1:0])
+            begin
+              $display ("*** %m DDR DRAM cannot do a Write until Write_precharge completes precharge %t", $time);
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            end
+            if (burst_counter[3:0] > 4'h1)
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+            end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          else if (control_wires[4:0] == PRECHARGE_BANK)  // do idles when it is safe to do so
+          begin
+            if ((BA[1:0] == bank_num[1:0]) | (A[10] == 1'b1))
+            begin
+              $display ("*** %m DDR DRAM cannot do a Precharge until Write_precharge completes plus recovery %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            end
+            else  // was to a different bank.  We are done
+            begin
+              if (burst_counter[3:0] > 4'h1)
+              begin
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+              end
+              else
+              begin
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+              end
+            end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          else
+          begin
+            $display ("*** %m DDR DRAM can only wait from Write_precharge %t", $time);
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
+            Timing_Error <= 1'b1;
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                              ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          load_mode_delay_counter[3:0]      <= 4'h0;
+          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
+                                             ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
+          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
+                                             ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
+          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
+                                             ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
+                                             ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
+          read_to_write_counter [3:0]       <= (read_to_write_counter[3:0] != 4'h0)
+                                             ? (read_to_write_counter[3:0] - 4'h1) : 4'h0;
+          write_to_read_counter [3:0]       <= WRITE_TO_READ_CYCLES;
+          write_recovery_counter[3:0]       <= WRITE_RECOVERY_TO_PRECHARGE_CYCLES + 1;  // to let write finish!
+          precharge_counter[3:0]            <= PRECHARGE_CYCLES;
+          refresh_counter[3:0]              <= 4'h0;
         end
 
       READING:
@@ -1092,7 +1293,7 @@ parameter BANK_STATE_WIDTH = 4;
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
               Timing_Error <= 1'b0;
             end
-            burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                                ? (burst_counter[3:0] - 4'h1) : 4'h0;
           end
           else if (control_wires[4:0] == ACTIVATE_BANK)  // activate only if this bank is addressed
@@ -1122,21 +1323,32 @@ parameter BANK_STATE_WIDTH = 4;
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
             end
-            burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                                ? (burst_counter[3:0] - 4'h1) : 4'h0;
           end
           else if (control_wires[4:0] == READ_BANK)
           begin
             if (BA[1:0] == bank_num[1:0])
             begin
-              if (A[10] == 1'b1)
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
-              else
+              if (burst_counter[3:0] > 4'h1)
+              begin
+                $display ("*** %m DDR DRAM cannot do a Read to a bank until the previous Read completes %t", $time);
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING;
-              Timing_Error <= 1'b0;
-              burst_counter[3:0]                <= 4'h2;
+                Timing_Error <= 1'b1;
+                burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                   ? (burst_counter[3:0] - 4'h1) : 4'h0;
+              end
+              else
+              begin
+                if (A[10] == 1'b1)
+                  bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
+                else
+                  bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING;
+                Timing_Error <= 1'b0;
+                burst_counter[3:0]                <= 4'h2;
+              end
             end
-            else
+            else  // was to a different bank.  We are done
             begin
               if (burst_counter[3:0] > 4'h1)
               begin
@@ -1146,7 +1358,7 @@ parameter BANK_STATE_WIDTH = 4;
               begin
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
               end
-              burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                                  ? (burst_counter[3:0] - 4'h1) : 4'h0;
             end
           end
@@ -1154,14 +1366,13 @@ parameter BANK_STATE_WIDTH = 4;
           begin
             if (BA[1:0] == bank_num[1:0])
             begin
-              if (A[10] == 1'b1)
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING_PRECHARGE;
-              else
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WRITING;
-              Timing_Error <= 1'b0;
-              burst_counter[3:0]                <= 4'h2;
+              $display ("*** %m DDR DRAM cannot do a Read until Write completes plus recovery %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING;
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
             end
-            else
+            else  // was to a different bank.  We are done
             begin
               if (burst_counter[3:0] > 4'h1)
               begin
@@ -1171,7 +1382,7 @@ parameter BANK_STATE_WIDTH = 4;
               begin
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
               end
-              burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                                  ? (burst_counter[3:0] - 4'h1) : 4'h0;
             end
           end
@@ -1179,19 +1390,30 @@ parameter BANK_STATE_WIDTH = 4;
           begin
             if ((BA[1:0] == bank_num[1:0]) | (A[10] == 1'b1))
             begin
-              if (act_to_precharge_counter[3:0] > 4'h1)
+              if (burst_counter[3:0] > 4'h1)
               begin
-                $display ("*** %m DDR DRAM has to wait during READ from Activate to Precharge %t", $time);
+                $display ("*** %m DDR DRAM cannot do a Precharge to a bank until the previous Read completes %t", $time);
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING;
                 Timing_Error <= 1'b1;
+                burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                   ? (burst_counter[3:0] - 4'h1) : 4'h0;
               end
               else
               begin
-                bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
-                Timing_Error <= 1'b0;
+                if (act_to_precharge_counter[3:0] > 4'h1)
+                begin
+                  $display ("*** %m DDR DRAM has to wait during READ from Activate to Precharge %t", $time);
+                  bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING;
+                  Timing_Error <= 1'b1;
+                end
+                else
+                begin
+                  bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
+                  Timing_Error <= 1'b0;
+                end
               end
             end
-            else
+            else  // was to a different bank.  We are done
             begin
               if (burst_counter[3:0] > 4'h1)
               begin
@@ -1202,7 +1424,7 @@ parameter BANK_STATE_WIDTH = 4;
                 bank_state[BANK_STATE_WIDTH - 1 : 0] <= ACTIVATING;
               end
             end
-            burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                                ? (burst_counter[3:0] - 4'h1) : 4'h0;
           end
           else
@@ -1210,28 +1432,276 @@ parameter BANK_STATE_WIDTH = 4;
             $display ("*** %m DDR DRAM can only do Read, Write, or Precharge from Read %t", $time);
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING;
             Timing_Error <= 1'b1;
-            burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
-                                              ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
           end
-          load_mode_counter[3:0]            <= (load_mode_counter[3:0] > 4'h0)
-                                             ? (load_mode_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+          load_mode_delay_counter[3:0]      <= (load_mode_delay_counter[3:0] != 4'h0)
+                                             ? (load_mode_delay_counter[3:0] - 4'h1) : 4'h0;
+          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                              ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                              ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                              ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                              ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
-          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] > 4'h0)
+          read_to_write_counter [3:0]       <= READ_TO_WRITE_CYCLES;
+          write_to_read_counter [3:0]       <= (write_to_read_counter[3:0] != 4'h0)
+                                             ? (write_to_read_counter[3:0] - 4'h1) : 4'h0;
+          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] != 4'h0)
                                              ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
-          refresh_counter[3:0]              <= (refresh_counter[3:0] > 4'h0)
-                                             ? (refresh_counter[3:0] - 4'h1) : 4'h0;
           precharge_counter[3:0]            <= PRECHARGE_CYCLES;
+          refresh_counter[3:0]              <= 4'h0;
         end
 
       READING_PRECHARGE:
         begin
+          if (   (control_wires[4] == 1'b0)      // powered off
+               | (control_wires[3] == 1'b1)      // not selected
+               | (control_wires[4:0] == NOOP) )  // noop
+          begin
+            if (burst_counter[3:0] > 4'h1)
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
+              Timing_Error <= 1'b0;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+              Timing_Error <= 1'b0;
+            end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          else if (control_wires[4:0] == ACTIVATE_BANK)  // activate only if this bank is addressed
+          begin
+            if (BA[1:0] == bank_num[1:0])
+            begin
+              $display ("*** %m DDR DRAM cannot do an Activate to a bank which is being Read %t", $time);
+              Timing_Error <= 1'b1;
+            end
+            if (burst_counter[3:0] > 4'h1)
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+            end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          else if (control_wires[4:0] == READ_BANK)
+          begin
+            if (BA[1:0] == bank_num[1:0])
+            begin
+              $display ("*** %m DDR DRAM cannot do a Read until Read_precharge completes precharge %t", $time);
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            end
+            if (burst_counter[3:0] > 4'h1)
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+            end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          else if (control_wires[4:0] == WRITE_BANK)
+          begin
+            if (BA[1:0] == bank_num[1:0])
+            begin
+              $display ("*** %m DDR DRAM cannot do a Write until Read_precharge completes precharge %t", $time);
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            end
+            if (burst_counter[3:0] > 4'h1)
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+            end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          else if (control_wires[4:0] == PRECHARGE_BANK)  // do idles when it is safe to do so
+          begin
+            if ((BA[1:0] == bank_num[1:0]) | (A[10] == 1'b1))
+            begin
+              $display ("*** %m DDR DRAM cannot do a Precharge until Read_precharge completes plus recovery %t", $time);
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            end
+            else  // was to a different bank.  We are done
+            begin
+              if (burst_counter[3:0] > 4'h1)
+              begin
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
+              end
+              else
+              begin
+                bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+              end
+            end
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          else
+          begin
+            $display ("*** %m DDR DRAM can only do Read, Write, or Precharge from Read %t", $time);
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= READING_PRECHARGE;
+            Timing_Error <= 1'b1;
+            burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                               ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          end
+          load_mode_delay_counter[3:0]      <= (load_mode_delay_counter[3:0] != 4'h0)
+                                             ? (load_mode_delay_counter[3:0] - 4'h1) : 4'h0;
+          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
+                                             ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
+          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
+                                             ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
+          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
+                                             ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
+                                             ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
+          burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                             ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          read_to_write_counter [3:0]       <= READ_TO_WRITE_CYCLES;
+          write_to_read_counter [3:0]       <= (write_to_read_counter[3:0] != 4'h0)
+                                             ? (write_to_read_counter[3:0] - 4'h1) : 4'h0;
+          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] != 4'h0)
+                                             ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
+          precharge_counter[3:0]            <= PRECHARGE_CYCLES;
+          refresh_counter[3:0]              <= 4'h0;
+        end
+
+      WAITING_FOR_AUTO_PRECHARGE:
+        begin
+          if (   (control_wires[4] == 1'b0)      // powered off
+               | (control_wires[3] == 1'b1)      // not selected
+               | (control_wires[4:0] == NOOP) )  // noop
+          begin
+            if (   (write_recovery_counter[3:0] > 4'h1)
+                 | (act_to_precharge_counter[3:0] > 4'h1) )
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+              Timing_Error <= 1'b0;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
+              Timing_Error <= 1'b0;
+            end
+          end
+          else if (control_wires[4:0] == ACTIVATE_BANK)  // activate only if this bank is addressed
+          begin
+            if (BA[1:0] == bank_num[1:0])
+            begin
+              $display ("*** %m DDR DRAM cannot do an Activate to a bank which is being auto_precharging %t", $time);
+              Timing_Error <= 1'b1;
+            end
+            if (   (write_recovery_counter[3:0] > 4'h1)
+                 | (act_to_precharge_counter[3:0] > 4'h1) )
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+              Timing_Error <= 1'b0;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
+              Timing_Error <= 1'b0;
+            end
+          end
+          else if (control_wires[4:0] == READ_BANK)
+          begin
+            if (BA[1:0] == bank_num[1:0])
+            begin
+              $display ("*** %m DDR DRAM cannot do a Read until bank completes precharge %t", $time);
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            end
+            if (   (write_recovery_counter[3:0] > 4'h1)
+                 | (act_to_precharge_counter[3:0] > 4'h1) )
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+              Timing_Error <= 1'b0;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
+              Timing_Error <= 1'b0;
+            end
+          end
+          else if (control_wires[4:0] == WRITE_BANK)
+          begin
+            if (BA[1:0] == bank_num[1:0])
+            begin
+              $display ("*** %m DDR DRAM cannot do a Write until bank completes precharge %t", $time);
+              Timing_Error <= 1'b1;
+              burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                                 ? (burst_counter[3:0] - 4'h1) : 4'h0;
+            end
+            if (   (write_recovery_counter[3:0] > 4'h1)
+                 | (act_to_precharge_counter[3:0] > 4'h1) )
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+              Timing_Error <= 1'b0;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
+              Timing_Error <= 1'b0;
+            end
+          end
+          else if (control_wires[4:0] == PRECHARGE_BANK)  // do idles when it is safe to do so
+          begin
+             if (   (write_recovery_counter[3:0] > 4'h1)
+                 | (act_to_precharge_counter[3:0] > 4'h1) )
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+              Timing_Error <= 1'b0;
+            end
+            else
+            begin
+              bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
+              Timing_Error <= 1'b0;
+            end
+          end
+          else
+          begin
+            $display ("*** %m DDR DRAM can only wait from Write_precharge %t", $time);
+            bank_state[BANK_STATE_WIDTH - 1 : 0] <= WAITING_FOR_AUTO_PRECHARGE;
+            Timing_Error <= 1'b1;
+          end
+          load_mode_delay_counter[3:0]      <= 4'h0;
+          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
+                                             ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
+          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
+                                             ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
+          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
+                                             ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
+                                             ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
+          burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                             ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          read_to_write_counter [3:0]       <= (read_to_write_counter[3:0] != 4'h0)
+                                             ? (read_to_write_counter[3:0] - 4'h1) : 4'h0;
+          write_to_read_counter [3:0]       <= (write_to_read_counter[3:0] != 4'h0)
+                                             ? (write_to_read_counter[3:0] - 4'h1) : 4'h0;
+          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] != 4'h0)
+                                             ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
+          precharge_counter[3:0]            <= PRECHARGE_CYCLES;
+          refresh_counter[3:0]              <= 4'h0;
         end
 
       PRECHARGING:
@@ -1240,7 +1710,7 @@ parameter BANK_STATE_WIDTH = 4;
                | (control_wires[3] == 1'b1)      // not selected
                | (control_wires[4:0] == NOOP) )  // noop
           begin
-            if (precharge_counter[3:0] > 4'h1)
+            if (precharge_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
               Timing_Error <= 1'b0;
@@ -1262,7 +1732,7 @@ parameter BANK_STATE_WIDTH = 4;
             begin
               Timing_Error <= 1'b0;
             end
-            if (precharge_counter[3:0] > 4'h1)
+            if (precharge_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
             end
@@ -1282,7 +1752,7 @@ parameter BANK_STATE_WIDTH = 4;
             begin
               Timing_Error <= 1'b0;
             end
-            if (precharge_counter[3:0] > 4'h1)
+            if (precharge_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
             end
@@ -1302,7 +1772,7 @@ parameter BANK_STATE_WIDTH = 4;
             begin
               Timing_Error <= 1'b0;
             end
-            if (precharge_counter[3:0] > 4'h1)
+            if (precharge_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
             end
@@ -1314,7 +1784,7 @@ parameter BANK_STATE_WIDTH = 4;
           else if (control_wires[4:0] == PRECHARGE_BANK)  // ignore extra precharges
           begin
             Timing_Error <= 1'b0;
-            if (precharge_counter[3:0] > 4'h1)
+            if (precharge_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
             end
@@ -1329,59 +1799,29 @@ parameter BANK_STATE_WIDTH = 4;
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= PRECHARGING;
             Timing_Error <= 1'b1;
           end
-          load_mode_counter[3:0]            <= (load_mode_counter[3:0] > 4'h0)
-                                             ? (load_mode_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+          load_mode_delay_counter[3:0]      <= (load_mode_delay_counter[3:0] != 4'h0)
+                                             ? (load_mode_delay_counter[3:0] - 4'h1) : 4'h0;
+          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                              ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                              ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                              ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                              ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
-          burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+          burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                              ? (burst_counter[3:0] - 4'h1) : 4'h0;
-          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] > 4'h0)
+          read_to_write_counter [3:0]       <= (read_to_write_counter[3:0] != 4'h0)
+                                             ? (read_to_write_counter[3:0] - 4'h1) : 4'h0;
+          write_to_read_counter [3:0]       <= (write_to_read_counter[3:0] != 4'h0)
+                                             ? (write_to_read_counter[3:0] - 4'h1) : 4'h0;
+          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] != 4'h0)
                                              ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
-          refresh_counter[3:0]              <= (refresh_counter[3:0] > 4'h0)
-                                             ? (refresh_counter[3:0] - 4'h1) : 4'h0;
-          precharge_counter[3:0]            <= (precharge_counter[3:0] > 4'h0)
+          precharge_counter[3:0]            <= (precharge_counter[3:0] != 4'h0)
                                              ? (precharge_counter[3:0] - 4'h1) : 4'h0;
-        end
-
-/*
-        begin
-          load_mode_counter[3:0]            <= (load_mode_counter[3:0] > 4'h0)
-                                             ? (load_mode_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
-                                             ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
-                                             ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
-                                             ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
-                                             ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
-          burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
-                                             ? (burst_counter[3:0] - 4'h1) : 4'h0;
-          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] > 4'h0)
-                                             ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
-          refresh_counter[3:0]              <= (refresh_counter[3:0] > 4'h0)
+          refresh_counter[3:0]              <= (refresh_counter[3:0] != 4'h0)
                                              ? (refresh_counter[3:0] - 4'h1) : 4'h0;
-          precharge_counter[3:0]            <= (precharge_counter[3:0] > 4'h0)
-                                             ? (precharge_counter[3:0] - 4'h1) : 4'h0;
-
-
-          load_mode_counter[3:0]            <= LOAD_MODE_REGISTER_CYCLES;
-          act_a_to_act_b_counter[3:0]       <= ACT_A_TO_ACT_B_CYCLES;
-          act_to_read_or_write_counter[3:0] <= ACT_TO_READ_OR_WRITE_CYCLES;
-          act_to_precharge_counter[3:0]     <= ACT_TO_PRECHARGE_CYCLES;
-          act_a_to_act_a_counter[3:0]       <= ACT_A_TO_ACT_A_CYCLES;
-          burst_counter[3:0]                <= 4'h2;
-          write_recovery_counter[3:0]       <= WRITE_RECOVERY_TO_PRECHARGE_CYCLES;
-          precharge_counter[3:0]            <= PRECHARGE_CYCLES;
-          refresh_counter[3:0]              <= REFRESH_CYCLES;
         end
-*/
 
       REFRESHING:
          begin
@@ -1389,7 +1829,7 @@ parameter BANK_STATE_WIDTH = 4;
                | (control_wires[3] == 1'b1)      // not selected
                | (control_wires[4:0] == NOOP) )  // noop
           begin
-            if (refresh_counter[3:0] > 4'h1)
+            if (refresh_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= REFRESHING;
               Timing_Error <= 1'b0;
@@ -1411,7 +1851,7 @@ parameter BANK_STATE_WIDTH = 4;
             begin
               Timing_Error <= 1'b0;
             end
-            if (refresh_counter[3:0] > 4'h1)
+            if (refresh_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= REFRESHING;
             end
@@ -1431,7 +1871,7 @@ parameter BANK_STATE_WIDTH = 4;
             begin
               Timing_Error <= 1'b0;
             end
-            if (refresh_counter[3:0] > 4'h1)
+            if (refresh_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= REFRESHING;
             end
@@ -1451,7 +1891,7 @@ parameter BANK_STATE_WIDTH = 4;
             begin
               Timing_Error <= 1'b0;
             end
-            if (refresh_counter[3:0] > 4'h1)
+            if (refresh_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= REFRESHING;
             end
@@ -1463,7 +1903,7 @@ parameter BANK_STATE_WIDTH = 4;
           else if (control_wires[4:0] == PRECHARGE_BANK)  // ignore extra precharges
           begin
             Timing_Error <= 1'b0;
-            if (refresh_counter[3:0] > 4'h1)
+            if (refresh_counter[3:0] > 4'h2)  // looping
             begin
               bank_state[BANK_STATE_WIDTH - 1 : 0] <= REFRESHING;
             end
@@ -1478,25 +1918,65 @@ parameter BANK_STATE_WIDTH = 4;
             bank_state[BANK_STATE_WIDTH - 1 : 0] <= REFRESHING;
             Timing_Error <= 1'b1;
           end
-          load_mode_counter[3:0]            <= (load_mode_counter[3:0] > 4'h0)
-                                             ? (load_mode_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] > 4'h0)
+          load_mode_delay_counter[3:0]      <= (load_mode_delay_counter[3:0] != 4'h0)
+                                             ? (load_mode_delay_counter[3:0] - 4'h1) : 4'h0;
+          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
                                              ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
-          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] > 4'h0)
+          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
                                              ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
-          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] > 4'h0)
+          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
                                              ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
-          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] > 4'h0)
+          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
                                              ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
-          burst_counter[3:0]                <= (burst_counter[3:0] > 4'h0)
+          burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
                                              ? (burst_counter[3:0] - 4'h1) : 4'h0;
-          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] > 4'h0)
+          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] != 4'h0)
                                              ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
-          refresh_counter[3:0]              <= (refresh_counter[3:0] > 4'h0)
-                                             ? (refresh_counter[3:0] - 4'h1) : 4'h0;
-          precharge_counter[3:0]            <= (precharge_counter[3:0] > 4'h0)
+          precharge_counter[3:0]            <= (precharge_counter[3:0] != 4'h0)
                                              ? (precharge_counter[3:0] - 4'h1) : 4'h0;
+          refresh_counter[3:0]              <= (refresh_counter[3:0] != 4'h0)
+                                             ? (refresh_counter[3:0] - 4'h1) : 4'h0;
         end
+
+/*
+        begin
+          load_mode_delay_counter[3:0]      <= (load_mode_delay_counter[3:0] != 4'h0)
+                                             ? (load_mode_delay_counter[3:0] - 4'h1) : 4'h0;
+          act_a_to_act_b_counter[3:0]       <= (act_a_to_act_b_counter[3:0] != 4'h0)
+                                             ? (act_a_to_act_b_counter[3:0] - 4'h1) : 4'h0;
+          act_to_read_or_write_counter[3:0] <= (act_to_read_or_write_counter[3:0] != 4'h0)
+                                             ? (act_to_read_or_write_counter[3:0] - 4'h1) : 4'h0;
+          act_to_precharge_counter[3:0]     <= (act_to_precharge_counter[3:0] != 4'h0)
+                                             ? (act_to_precharge_counter[3:0] - 4'h1) : 4'h0;
+          act_a_to_act_a_counter[3:0]       <= (act_a_to_act_a_counter[3:0] != 4'h0)
+                                             ? (act_a_to_act_a_counter[3:0] - 4'h1) : 4'h0;
+          burst_counter[3:0]                <= (burst_counter[3:0] != 4'h0)
+                                             ? (burst_counter[3:0] - 4'h1) : 4'h0;
+          read_to_write_counter [3:0]       <= (read_to_write_counter[3:0] != 4'h0)
+                                             ? (read_to_write_counter[3:0] - 4'h1) : 4'h0;
+          write_to_read_counter [3:0]       <= (write_to_read_counter[3:0] != 4'h0)
+                                             ? (write_to_read_counter[3:0] - 4'h1) : 4'h0;
+          write_recovery_counter[3:0]       <= (write_recovery_counter[3:0] != 4'h0)
+                                             ? (write_recovery_counter[3:0] - 4'h1) : 4'h0;
+          precharge_counter[3:0]            <= (precharge_counter[3:0] != 4'h0)
+                                             ? (precharge_counter[3:0] - 4'h1) : 4'h0;
+          refresh_counter[3:0]              <= (refresh_counter[3:0] != 4'h0)
+                                             ? (refresh_counter[3:0] - 4'h1) : 4'h0;
+
+
+          load_mode_delay_counter[3:0]      <= LOAD_MODE_REGISTER_CYCLES;
+          act_a_to_act_b_counter[3:0]       <= ACT_A_TO_ACT_B_CYCLES;
+          act_to_read_or_write_counter[3:0] <= ACT_TO_READ_OR_WRITE_CYCLES;
+          act_to_precharge_counter[3:0]     <= ACT_TO_PRECHARGE_CYCLES;
+          act_a_to_act_a_counter[3:0]       <= ACT_A_TO_ACT_A_CYCLES;
+          burst_counter[3:0]                <= 4'h2;
+          read_to_write_counter [3:0]       <= READ_TO_WRITE_CYCLES;
+          write_to_read_counter [3:0]       <= WRITE_TO_READ_CYCLES;
+          write_recovery_counter[3:0]       <= WRITE_RECOVERY_TO_PRECHARGE_CYCLES;
+          precharge_counter[3:0]            <= PRECHARGE_CYCLES;
+          refresh_counter[3:0]              <= REFRESH_CYCLES;
+        end
+*/
 
       default:
         begin
@@ -1506,7 +1986,6 @@ parameter BANK_STATE_WIDTH = 4;
         end
     endcase
   end
-
 // Storage
   wire   [7 : 0] data_out;
   wire   [7 : 0] data_in;
@@ -1526,6 +2005,7 @@ sram_for_debugging_sync
   .write_enable               (write_enable),
   .clk                        (CLK_P)
 );
+
 
 endmodule
 
@@ -1549,7 +2029,7 @@ module test_ddr_2_dram;
 
   initial
   begin
-    #1000_000 $finish;
+    #2000_000 $finish;
   end
 
 // hook up sequential test bench to instantiation of DDR DRAM for test
@@ -1596,25 +2076,89 @@ parameter LOAD_MODE = 5'h10;
     DQ_oe <= 1'b0;  DQS_oe <= 1'b0;
     @ (posedge CLK_P) ;  // noop
 
-    @ (posedge CLK_P) ;  // noop
-
-    A[12:0] <= 13'h1555;  BA[1:0] <= 2'h0;
+A[12:0] <= 13'h1555;  BA[1:0] <= 2'h0;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= LOAD_MODE;
     @ (posedge CLK_P) ;  // write reg
 
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop
 
-    A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= ACTIVATE;
     @ (posedge CLK_P) ;  // activate
 
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop
 
-    A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= WRITE;
+    @ (posedge CLK_P) ;  // write DRAM
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= WRITE;
+    @ (posedge CLK_P) ;  // write DRAM
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= READ;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= READ;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= PRECHARGE;
+    @ (posedge CLK_P) ;  // noop
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= ACTIVATE;
     @ (posedge CLK_P) ;  // activate
 
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop
+
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= READ;
+    @ (posedge CLK_P) ;  // read
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data  //
+
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= WRITE;
+    @ (posedge CLK_P) ;  // write
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
@@ -1623,20 +2167,10 @@ parameter LOAD_MODE = 5'h10;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
+
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= PRECHARGE;
-    @ (posedge CLK_P) ;  // noop + data
-
-    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
-    @ (posedge CLK_P) ;  // noop + data
-
-    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
-    @ (posedge CLK_P) ;  // noop + data
-
-    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
-    @ (posedge CLK_P) ;  // noop + data
-
-    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
-    @ (posedge CLK_P) ;  // noop + data
+    @ (posedge CLK_P) ;  // noop
 
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
@@ -1665,13 +2199,59 @@ parameter LOAD_MODE = 5'h10;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= ACTIVATE;
+    @ (posedge CLK_P) ;  // activate
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+A[12:0] <= 13'h400;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= WRITE;
+    @ (posedge CLK_P) ;  // write
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
     @ (posedge CLK_P) ;  // noop + data
 
-    A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= ACTIVATE;
+    @ (posedge CLK_P) ;  // activate
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+A[12:0] <= 13'h400;  BA[1:0] <= 2'h0;
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= READ;
+    @ (posedge CLK_P) ;  // write
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+    {CKE, CS_L, RAS_L, CAS_L, WE_L} <= NOOP;
+    @ (posedge CLK_P) ;  // noop + data
+
+A[12:0] <= 13'h0;  BA[1:0] <= 2'h0;
     {CKE, CS_L, RAS_L, CAS_L, WE_L} <= ACTIVATE;
     @ (posedge CLK_P) ;  // activate
 
